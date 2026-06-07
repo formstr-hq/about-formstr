@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import "./index.css";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 type Product = {
   name: string;
@@ -35,7 +36,7 @@ const products: Product[] = [
     name: "Formstr",
     tagline: "Decentralized Forms",
     description:
-      "A privacy-first alternative to Google Forms. Create surveys, collect responses, and own your data — all powered by Nostr. Supports anonymous submissions, encrypted responses, AI-powered form generation, and data export.",
+      "Create surveys and collect responses without giving up your data. Built on Nostr with full data ownership, anonymous submissions, encrypted responses, AI-powered form generation, and data export.",
     icon: FileText,
     url: "https://formstr.app",
     color: "#6366f1",
@@ -61,7 +62,7 @@ const products: Product[] = [
     icon: FileEdit,
     url: "https://pages.formstr.app",
     color: "#10b981",
-    logo: "/images/formstr-pages/logo.png",
+    logo: "/images/formstr-pages/logo.svg",
   },
   {
     name: "Formstr Calendar",
@@ -71,17 +72,18 @@ const products: Product[] = [
     icon: CalendarDays,
     url: "https://calendar.formstr.app",
     color: "#3b82f6",
-    logo: "/images/formstr-calendar/logo.png",
+    logo: "/images/formstr-calendar/calendar-icon.svg",
     screenshot: "/images/formstr-calendar/calendar-icon.svg",
   },
   {
     name: "Formstr Drive",
     tagline: "Decentralized File Storage",
     description:
-      "A decentralized alternative to Google Drive. Upload, organize, and share files using Nostr for indexing and Blossom servers for storage. Your files, your servers, your rules.",
+      "Upload, organize, and share files without any central authority tracking you. Uses Nostr for indexing and Blossom servers for storage — your files stay on servers you choose. Your files, your servers, your rules.",
     icon: HardDrive,
     url: null,
     color: "#8b5cf6",
+    logo: "/images/formstr-drive/logo.svg",
   },
   {
     name: "NRPC",
@@ -184,10 +186,7 @@ function ProductCard({ product }: { product: Product }) {
             <h3 className="text-lg font-semibold leading-tight text-gray-900">
               {product.name}
             </h3>
-            <p
-              className="text-sm font-medium"
-              style={{ color: product.color }}
-            >
+            <p className="text-sm font-medium" style={{ color: product.color }}>
               {product.tagline}
             </p>
           </div>
@@ -210,39 +209,87 @@ function ProductCard({ product }: { product: Product }) {
   );
 }
 
-function App() {
+export function Navbar() {
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      {/* Nav */}
-      <nav className="border-b border-gray-100">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="/" className="flex items-center gap-2">
+    <nav className="border-b border-gray-100">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <a href="/" className="flex items-center gap-2">
+          <img
+            src="/images/formstr/formstr-logo.svg"
+            alt="formstr"
+            className="h-7"
+          />
+        </a>
+        <div className="flex items-center gap-4">
+          <a
+            href="https://github.com/formstr-hq"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-500 transition-colors hover:text-gray-900"
+          >
+            <Github size={20} />
+          </a>
+          <a
+            href="https://formstr.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+          >
+            Try Formstr
+          </a>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+export function Footer() {
+  return (
+    <footer className="border-t border-gray-200">
+      <div className="mx-auto max-w-6xl px-6 py-10">
+        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <div>
             <img
               src="/images/formstr/formstr-logo.svg"
               alt="formstr"
-              className="h-7"
+              className="h-6"
             />
-          </a>
-          <div className="flex items-center gap-4">
+            <p className="mt-2 text-sm text-gray-500">
+              Decentralized tools on Nostr.
+            </p>
+          </div>
+          <div className="flex items-center gap-6 text-sm text-gray-500">
+            <a
+              href="mailto:hello@formstr.app"
+              className="transition-colors hover:text-gray-900"
+            >
+              hello@formstr.app
+            </a>
             <a
               href="https://github.com/formstr-hq"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-500 transition-colors hover:text-gray-900"
+              className="transition-colors hover:text-gray-900"
             >
-              <Github size={20} />
+              GitHub
             </a>
             <a
-              href="https://formstr.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+              href="/privacy-policy"
+              className="transition-colors hover:text-gray-900"
             >
-              Try Formstr
+              Privacy Policy
             </a>
           </div>
         </div>
-      </nav>
+      </div>
+    </footer>
+  );
+}
+
+function Home() {
+  return (
+    <div className="min-h-screen bg-white text-gray-900">
+      <Navbar />
 
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 pt-24 pb-20">
@@ -352,41 +399,15 @@ function App() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200">
-        <div className="mx-auto max-w-6xl px-6 py-10">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <div>
-              <img
-                src="/images/formstr/formstr-logo.svg"
-                alt="formstr"
-                className="h-6"
-              />
-              <p className="mt-2 text-sm text-gray-500">
-                Decentralized tools on Nostr.
-              </p>
-            </div>
-            <div className="flex items-center gap-6 text-sm text-gray-500">
-              <a
-                href="mailto:hello@formstr.app"
-                className="transition-colors hover:text-gray-900"
-              >
-                hello@formstr.app
-              </a>
-              <a
-                href="https://github.com/formstr-hq"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-colors hover:text-gray-900"
-              >
-                GitHub
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
+}
+
+function App() {
+  const path = window.location.pathname;
+  if (path === "/privacy-policy") return <PrivacyPolicy />;
+  return <Home />;
 }
 
 export default App;
