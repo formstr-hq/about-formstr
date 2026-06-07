@@ -61,7 +61,7 @@ const products: Product[] = [
     icon: FileEdit,
     url: "https://pages.formstr.app",
     color: "#10b981",
-    logo: "/images/formstr-pages/logo.png",
+    logo: "/images/formstr-pages/logo.svg",
   },
   {
     name: "Formstr Calendar",
@@ -82,6 +82,7 @@ const products: Product[] = [
     icon: HardDrive,
     url: null,
     color: "#8b5cf6",
+    logo: "/images/formstr-drive/logo.svg",
   },
   {
     name: "NRPC",
@@ -184,10 +185,7 @@ function ProductCard({ product }: { product: Product }) {
             <h3 className="text-lg font-semibold leading-tight text-gray-900">
               {product.name}
             </h3>
-            <p
-              className="text-sm font-medium"
-              style={{ color: product.color }}
-            >
+            <p className="text-sm font-medium" style={{ color: product.color }}>
               {product.tagline}
             </p>
           </div>
