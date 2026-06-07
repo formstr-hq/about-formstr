@@ -41,11 +41,6 @@ Some Formstr features - such as paid forms, custom short links, and other premiu
 
 ## Third-Party Services
 
-Formstr uses the following providers to host its websites. The Formstr apps themselves run locally on your device and do not depend on these services.
-
-- **Cloudflare** - handles DNS and network security for Formstr websites. May collect technical information such as IP addresses. See [Cloudflare's Privacy Policy](https://www.cloudflare.com/privacypolicy/).
-- **Vercel** - hosts Formstr websites. May log basic request information. See [Vercel's Privacy Policy](https://vercel.com/legal/privacy-policy).
-
 The Nostr relays and storage servers you connect to are operated by independent third parties and governed by their own privacy policies.
 
 ---
