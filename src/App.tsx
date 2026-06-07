@@ -36,7 +36,7 @@ const products: Product[] = [
     name: "Formstr",
     tagline: "Decentralized Forms",
     description:
-      "A privacy-first alternative to Google Forms. Create surveys, collect responses, and own your data — all powered by Nostr. Supports anonymous submissions, encrypted responses, AI-powered form generation, and data export.",
+      "Create surveys and collect responses without giving up your data. Built on Nostr with full data ownership, anonymous submissions, encrypted responses, AI-powered form generation, and data export.",
     icon: FileText,
     url: "https://formstr.app",
     color: "#6366f1",
@@ -79,7 +79,7 @@ const products: Product[] = [
     name: "Formstr Drive",
     tagline: "Decentralized File Storage",
     description:
-      "A decentralized alternative to Google Drive. Upload, organize, and share files using Nostr for indexing and Blossom servers for storage. Your files, your servers, your rules.",
+      "Upload, organize, and share files without any central authority tracking you. Uses Nostr for indexing and Blossom servers for storage — your files stay on servers you choose. Your files, your servers, your rules.",
     icon: HardDrive,
     url: null,
     color: "#8b5cf6",
