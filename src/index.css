@@ -3,12 +3,80 @@
 
 @theme {
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --color-primary: #6366f1;
-  --color-primary-light: #818cf8;
+  --font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+
+  --color-ink: #0b0b0c;
+  --color-paper: #f7f5ef;
+  --color-primary: #ff5c00;
+  --color-primary-light: #ff8a00;
+  --color-amber: #ffb020;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
+  background: #f7f5ef;
+  color: #0b0b0c;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* graph-paper grid — the Formstr brand sits on graph paper */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(11, 11, 12, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(11, 11, 12, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.bg-grid-lg {
+  background-image:
+    linear-gradient(to right, rgba(11, 11, 12, 0.06) 1.2px, transparent 1.2px),
+    linear-gradient(to bottom, rgba(11, 11, 12, 0.06) 1.2px, transparent 1.2px);
+  background-size: 160px 160px;
+}
+.bg-grid-dark {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+/* handwritten margin notes — the "built in the open" notebook voice */
+.hand {
+  font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
+}
+
+@keyframes spinSlow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin-slow {
+  animation: spinSlow 55s linear infinite;
+}
+
+@keyframes floatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+.float {
+  animation: floatY 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .spin-slow,
+  .float {
+    animation: none !important;
+  }
 }

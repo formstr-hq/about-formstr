@@ -2,16 +2,163 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/images/formstr/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Formstr - Decentralized Tools on Nostr</title>
-    <meta name="description" content="Building decentralized, privacy-first alternatives to everyday tools using the Nostr protocol." />
+
+    <!-- IMPORTANT: set this to the real deployed origin (canonical, OG & sitemap) -->
+    <link rel="canonical" href="https://about.formstr.app/" />
+
+    <title>Formstr — Own your tools. Decentralized, private apps on Nostr.</title>
+    <meta
+      name="description"
+      content="Forms, polls, docs, calendars and file storage you actually own. Encrypted with keys only you hold, on relays you pick — privacy you can verify. Open-source, built on Nostr. Own it, don't rent it."
+    />
+    <meta name="theme-color" content="#ff5c00" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="Formstr" />
+    <meta
+      name="keywords"
+      content="Formstr, Nostr, decentralized forms, encrypted forms, decentralized productivity, Pollerama, NIP-88, decentralized docs, decentralized calendar, decentralized file storage, privacy, self-hosted, open source"
+    />
+
+    <!-- icons -->
+    <link rel="icon" href="/images/formstr/favicon.ico" />
+    <link rel="apple-touch-icon" href="/images/formstr/logo-192.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Formstr" />
+    <meta property="og:url" content="https://about.formstr.app/" />
+    <meta
+      property="og:title"
+      content="Formstr — Own your tools. Decentralized, private apps on Nostr."
+    />
+    <meta
+      property="og:description"
+      content="Forms, polls, docs, calendars and file storage you actually own. Encrypted with keys only you hold — privacy you can verify. Own it, don't rent it."
+    />
+    <meta property="og:image" content="https://about.formstr.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Formstr — your life's work shouldn't have a landlord. Decentralized, private productivity tools on Nostr."
+    />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Formstr — Own your tools. Decentralized, private apps on Nostr."
+    />
+    <meta
+      name="twitter:description"
+      content="Forms, polls, docs, calendars and file storage you actually own. Privacy you can verify. Own it, don't rent it."
+    />
+    <meta name="twitter:image" content="https://about.formstr.app/og-image.png" />
+
+    <!-- fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://about.formstr.app/#org",
+            "name": "Formstr",
+            "url": "https://about.formstr.app/",
+            "logo": "https://about.formstr.app/images/formstr/logo-192.png",
+            "description": "Decentralized, privacy-first productivity tools built on the Nostr protocol.",
+            "sameAs": ["https://github.com/formstr-hq", "https://formstr.app"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://about.formstr.app/#website",
+            "url": "https://about.formstr.app/",
+            "name": "Formstr",
+            "publisher": { "@id": "https://about.formstr.app/#org" }
+          },
+          {
+            "@type": "ItemList",
+            "name": "The Formstr suite",
+            "itemListElement": [
+              {
+                "@type": "SoftwareApplication",
+                "name": "Formstr",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web",
+                "url": "https://formstr.app",
+                "description": "Decentralized, end-to-end encrypted forms and surveys on Nostr with full data ownership.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Pollerama",
+                "applicationCategory": "SocialNetworkingApplication",
+                "operatingSystem": "Web",
+                "url": "https://pollerama.fun",
+                "description": "A playful Nostr client, home to the NIP-88 polling standard.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Formstr Pages",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web",
+                "url": "https://pages.formstr.app",
+                "description": "Private, Notion-style notes and documents on Nostr, encrypted and yours.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Formstr Calendar",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web",
+                "url": "https://calendar.formstr.app",
+                "description": "Decentralized calendar, events and RSVPs on Nostr with end-to-end encryption.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Formstr Drive",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web",
+                "url": "https://drive.formstr.app",
+                "description": "Decentralized file storage indexed on Nostr and stored on Blossom servers you choose.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>Formstr — own your tools. Decentralized, private apps on Nostr.</h1>
+      <p>
+        Forms, polls, docs, calendars and file storage you actually own.
+        Encrypted with keys only you hold, on relays you pick — privacy you can
+        verify. Open-source, built on Nostr. Own it, don't rent it.
+      </p>
+      <ul>
+        <li><a href="https://formstr.app">Formstr — decentralized forms</a></li>
+        <li><a href="https://pollerama.fun">Pollerama — a playful Nostr client (NIP-88 polls)</a></li>
+        <li><a href="https://pages.formstr.app">Formstr Pages — private docs &amp; notes</a></li>
+        <li><a href="https://calendar.formstr.app">Formstr Calendar — decentralized calendar</a></li>
+        <li><a href="https://drive.formstr.app">Formstr Drive — decentralized file storage</a></li>
+      </ul>
+      <p><a href="https://github.com/formstr-hq">Formstr on GitHub</a> — every repo is MIT licensed.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
