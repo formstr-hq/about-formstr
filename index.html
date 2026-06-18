@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- Flag JS as available before first paint, so scroll-reveal styles only
+         hide content when JS can animate it back in. No-JS users and crawlers
+         keep everything visible, and there's no reveal flash on load. -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
+
     <!-- IMPORTANT: set this to the real deployed origin (canonical, OG & sitemap) -->
     <link rel="canonical" href="https://about.formstr.app/" />
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import {
   BarChart3,
   FileEdit,
@@ -21,6 +22,71 @@ import {
 import type { LucideIcon } from "lucide-react";
 import "./index.css";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+
+/* Stagger helper: delays a `.reveal` element's transition so grid siblings
+   cascade in one after another instead of all at once. */
+const rv = (step: number): CSSProperties =>
+  ({ "--rd": `${step * 90}ms` }) as CSSProperties;
+
+/* Scroll effects, JS-driven so they work on every browser (incl. iOS Safari,
+   which doesn't support CSS scroll-timelines):
+   - IntersectionObserver reveals `.reveal` elements as they enter the viewport
+   - a passive scroll listener feeds the top progress bar
+   Both honor prefers-reduced-motion and degrade gracefully without JS. */
+function useScrollFx() {
+  useEffect(() => {
+    const reduce =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const els = Array.from(
+      document.querySelectorAll<HTMLElement>(".reveal"),
+    );
+
+    let io: IntersectionObserver | undefined;
+    if (reduce || typeof IntersectionObserver === "undefined") {
+      els.forEach((el) => el.classList.add("is-visible"));
+    } else {
+      io = new IntersectionObserver(
+        (entries, obs) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              e.target.classList.add("is-visible");
+              obs.unobserve(e.target);
+            }
+          }
+        },
+        { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
+      );
+      els.forEach((el) => io!.observe(el));
+    }
+
+    const bar = document.querySelector<HTMLElement>(".scroll-progress");
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const doc = document.documentElement;
+        const max = doc.scrollHeight - doc.clientHeight;
+        const p = max > 0 ? Math.min(doc.scrollTop / max, 1) : 0;
+        bar?.style.setProperty("--scroll", String(p));
+      });
+    };
+    if (!reduce && bar) {
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll, { passive: true });
+    }
+
+    return () => {
+      io?.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+}
 
 /* ------------------------------------------------------------------ */
 /* Brand glyph — the gear-flower asterisk                              */
@@ -562,12 +628,15 @@ export function Navbar() {
 /* Product card                                                        */
 /* ------------------------------------------------------------------ */
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
   const Icon = product.icon;
   const live = !!product.url;
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white transition-all hover:-translate-y-1 hover:shadow-xl">
+    <div
+      style={rv(index)}
+      className="reveal reveal-scale group relative flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white transition-all hover:-translate-y-1 hover:shadow-xl"
+    >
       {product.shot ? (
         <div className="relative h-40 overflow-hidden border-b border-black/5 bg-paper">
           {/* tape */}
@@ -718,7 +787,7 @@ function Thesis() {
   return (
     <section id="thesis" className="border-t border-black/5 bg-ink text-white">
       <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-        <div className="max-w-2xl">
+        <div className="reveal max-w-2xl">
           <p className="mb-3 text-sm font-bold uppercase tracking-widest text-primary-light">
             The thesis
           </p>
@@ -734,7 +803,7 @@ function Thesis() {
         </div>
 
         <div className="mt-12 grid gap-5 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-7">
+          <div className="reveal reveal-left rounded-2xl border border-white/10 bg-white/[0.03] p-7">
             <p className="mb-5 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-white/40">
               <Lock size={16} /> Renting
             </p>
@@ -749,7 +818,7 @@ function Thesis() {
               ))}
             </ul>
           </div>
-          <div className="rounded-2xl border border-primary/30 bg-primary/[0.07] p-7">
+          <div className="reveal reveal-right rounded-2xl border border-primary/30 bg-primary/[0.07] p-7">
             <p className="mb-5 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-primary-light">
               <KeyRound size={16} /> Owning
             </p>
@@ -775,7 +844,7 @@ function Suite() {
   return (
     <section id="apps" className="border-t border-black/5">
       <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-        <div className="mb-12 max-w-2xl">
+        <div className="reveal mb-12 max-w-2xl">
           <p className="mb-3 text-sm font-bold uppercase tracking-widest text-primary">
             The suite
           </p>
@@ -790,7 +859,7 @@ function Suite() {
         </div>
 
         {/* featured — Formstr */}
-        <div className="mb-6 grid items-stretch overflow-hidden rounded-2xl border border-black/10 bg-white md:grid-cols-2">
+        <div className="reveal reveal-scale mb-6 grid items-stretch overflow-hidden rounded-2xl border border-black/10 bg-white md:grid-cols-2">
           <div className="flex flex-col justify-center p-8 lg:p-10">
             <div className="mb-4 flex items-center gap-3">
               <Asterisk className="h-10 w-10" />
@@ -834,8 +903,8 @@ function Suite() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((p) => (
-            <ProductCard key={p.name} product={p} />
+          {products.map((p, i) => (
+            <ProductCard key={p.name} product={p} index={i % 3} />
           ))}
         </div>
       </div>
@@ -847,7 +916,7 @@ function Privacy() {
   return (
     <section id="privacy" className="border-t border-black/5 bg-ink text-white">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2 lg:py-24">
-        <div>
+        <div className="reveal reveal-left">
           <p className="mb-3 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary-light">
             <ShieldCheck size={16} /> Verifiable privacy
           </p>
@@ -870,7 +939,7 @@ function Privacy() {
         </div>
 
         {/* what the relay sees vs what you see */}
-        <div className="space-y-3">
+        <div className="reveal reveal-right space-y-3">
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-white/40">
               <Lock size={14} /> What the relay stores
@@ -916,7 +985,7 @@ function BuiltInOpen() {
     <section id="open" className="relative overflow-hidden border-t border-black/5 bg-grid">
       <div className="absolute inset-0 bg-grid-lg" />
       <div className="relative mx-auto grid max-w-6xl gap-12 px-6 py-20 lg:grid-cols-2 lg:py-24">
-        <div>
+        <div className="reveal reveal-left">
           <p className="mb-3 text-sm font-bold uppercase tracking-widest text-primary">
             Built in the open
           </p>
@@ -947,7 +1016,7 @@ function BuiltInOpen() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-black/10 bg-white p-2 shadow-sm">
+        <div className="reveal reveal-right rounded-2xl border border-black/10 bg-white p-2 shadow-sm">
           <div className="flex items-center gap-1.5 px-3 py-2">
             <span className="h-2.5 w-2.5 rounded-full bg-primary" />
             <span className="h-2.5 w-2.5 rounded-full bg-amber" />
@@ -986,8 +1055,8 @@ function Principles() {
     <section className="border-t border-black/5">
       <div className="mx-auto max-w-6xl px-6 py-20">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {principles.map((p) => (
-            <div key={p.title}>
+          {principles.map((p, i) => (
+            <div key={p.title} className="reveal" style={rv(i)}>
               <p.icon size={26} className="mb-3 text-primary" strokeWidth={1.6} />
               <h3 className="mb-1.5 font-bold text-ink">{p.title}</h3>
               <p className="text-sm leading-relaxed text-gray-500">
@@ -1004,7 +1073,7 @@ function Principles() {
 function Nostr() {
   return (
     <section id="nostr" className="border-t border-black/5 bg-paper">
-      <div className="mx-auto max-w-2xl px-6 py-20 text-center">
+      <div className="reveal mx-auto max-w-2xl px-6 py-20 text-center">
         <Asterisk className="mx-auto mb-6 h-12 w-12" />
         <h2 className="text-3xl font-bold tracking-tight text-ink">
           Built on Nostr
@@ -1084,8 +1153,10 @@ export function Footer() {
 /* ------------------------------------------------------------------ */
 
 function Home() {
+  useScrollFx();
   return (
     <div className="min-h-screen bg-paper text-ink">
+      <div className="scroll-progress" aria-hidden="true" />
       <Navbar />
       <Hero />
       <Thesis />
