@@ -257,7 +257,7 @@ const products: Product[] = [
     name: "Formstr Calendar",
     tagline: "Decentralized Calendar",
     description:
-      "Events, RSVPs, and scheduling on Nostr. Public and private events with end-to-end encryption, recurring events, and drag-and-drop planning.",
+      "Private events, RSVPs, recurring schedules, and Calendly-style booking pages on Nostr — all end-to-end encrypted. No central server keeping a log of who you meet and when.",
     icon: CalendarDays,
     url: "https://calendar.formstr.app",
     color: "#3b82f6",
@@ -312,7 +312,7 @@ const principles = [
     icon: Globe,
     title: "Open & interoperable",
     description:
-      "Open protocols, open source. Your forms and polls are readable by any Nostr client. Extend it, remix it, self-host it.",
+      "Open protocols, open source. Your forms and docs are readable by any Nostr client. Extend it, remix it, self-host it.",
   },
   {
     icon: Zap,
@@ -725,10 +725,10 @@ function Hero() {
             a <span className="text-primary">landlord.</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-gray-600">
-            Forms, docs, polls, schedules, files — the tools you do real work in.
+            Forms, docs, calendars, files — the tools your business runs on.
             Encrypted with keys only you hold, on relays you pick —{" "}
             <span className="font-semibold text-ink">
-              privacy you can actually verify.
+              security you can actually verify.
             </span>
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -742,7 +742,7 @@ function Hero() {
               href="#privacy"
               className="inline-flex items-center gap-2 rounded-xl border border-ink/15 px-6 py-3.5 text-sm font-semibold text-ink transition-colors hover:bg-black/[0.03]"
             >
-              Why it's private
+              Why it's secure
             </a>
           </div>
           <p className="mt-4 flex items-center gap-2 text-sm text-gray-500">
@@ -773,9 +773,9 @@ function Hero() {
 
 function Thesis() {
   const rented = [
-    "Your account can be banned — and your work with it",
-    "Your responses get mined to sell you ads",
-    "The product gets sunset on a roadmap you can't see",
+    "Your account can be banned — and your company's work with it",
+    "Your data — even who you meet and when — gets mined",
+    "The tool gets sunset on a roadmap you can't see",
     "Export is locked behind the next pricing tier",
   ];
   const owned = [
@@ -795,9 +795,9 @@ function Thesis() {
             Right now, you're renting your tools.
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-white/60">
-            The forms, docs, and files you make today are the most important
-            work you do — and they live on Big Tech's computers, under Big
-            Tech's rules. You can be locked out, mined, or shut down at any
+            The forms, docs, calendars, and files your business runs on are its
+            most valuable asset — and they live on Big Tech's computers, under
+            Big Tech's rules. You can be locked out, mined, or shut down at any
             time. Formstr changes that: your work, your keys, yours to keep.
           </p>
         </div>
@@ -853,8 +853,8 @@ function Suite() {
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-gray-600">
             A growing set of decentralized apps — each one replacing a rented
-            tool you rely on today. Sign in once with your Nostr key and they
-            all work together.
+            tool your business relies on today. Sign in once with your Nostr key
+            and they all work together.
           </p>
         </div>
 
@@ -918,10 +918,10 @@ function Privacy() {
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2 lg:py-24">
         <div className="reveal reveal-left">
           <p className="mb-3 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary-light">
-            <ShieldCheck size={16} /> Verifiable privacy
+            <ShieldCheck size={16} /> Verifiable security
           </p>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Privacy you can verify.
+            Security you can verify.
           </h2>
           <p className="mt-5 text-lg leading-relaxed text-white/65">
             You encrypt with keys only you hold. The relays that store your work
@@ -930,10 +930,10 @@ function Privacy() {
           </p>
           <p className="mt-4 text-lg leading-relaxed text-white/65">
             And you can check it yourself: the encryption is open source and
-            runs on your device, so privacy here is something you prove, not
+            runs on your device, so security here is something you prove, not
             something you're promised.{" "}
             <span className="font-semibold text-white">
-              The only kind of privacy that's actually real.
+              The only kind of security that's actually real.
             </span>
           </p>
         </div>
