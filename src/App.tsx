@@ -1085,7 +1085,7 @@ function Nostr() {
           content — which is exactly why we build on it.
         </p>
         <a
-          href="https://nostr.com"
+          href="https://nostr.org"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary-light"
@@ -1125,7 +1125,7 @@ export function Footer() {
               GitHub
             </a>
             <a
-              href="https://nostr.com"
+              href="https://nostr.org"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-white"
