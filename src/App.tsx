@@ -757,19 +757,19 @@ function Hero() {
             style={{ opacity: "var(--act1, 0)" } as CSSProperties}
           >
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-primary-light backdrop-blur-sm">
-              <Asterisk className="h-3.5 w-3.5" /> Own it, don't rent it
+              <Asterisk className="h-3.5 w-3.5" /> Free it, don't cage it
             </div>
             <h1 className="text-5xl font-extrabold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl">
               Your life's work
               <br />
               shouldn't have
-              <br />a <span className="text-primary-light">landlord.</span>
+              <br />a <span className="text-primary-light">jailer.</span>
             </h1>
             <p className="mt-5 max-w-md text-base leading-relaxed text-white/60 sm:text-lg">
               Forms, docs, polls, schedules, files — encrypted with keys only
               you hold, on relays you pick.{" "}
               <span className="font-semibold text-white">
-                Privacy you can actually verify.
+                Security you can actually verify.
               </span>
             </p>
             <div className="mt-7 flex flex-wrap gap-3 pointer-events-auto">
@@ -783,7 +783,7 @@ function Hero() {
                 href="#privacy"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 text-sm font-semibold text-white/80 backdrop-blur-sm transition-colors hover:bg-white/[0.06]"
               >
-                Why it's private
+                Why it's secure
               </a>
             </div>
           </div>
@@ -861,16 +861,16 @@ function Hero() {
 }
 
 function Thesis() {
-  const rented = [
-    "Your account can be banned — and your company's work with it",
-    "Your data — even who you meet and when — gets mined",
-    "The tool gets sunset on a roadmap you can't see",
-    "Export is locked behind the next pricing tier",
+  const caged = [
+    "Your account can be locked — and your company's work sealed inside",
+    "Your data — even who you meet and when — is watched and sold",
+    "The whole thing can be shut down on a roadmap you can't see",
+    "The way out is locked behind the next pricing tier",
   ];
-  const owned = [
-    "A key only you hold — nothing to ban",
+  const freed = [
+    "A key only you hold — no one can lock you out",
     "End-to-end encrypted; relays can't read it",
-    "Open formats, export anytime, self-host anytime",
+    "Open formats — walk out with your data anytime",
     "Free, open source, and interoperable by design",
   ];
   return (
@@ -881,23 +881,24 @@ function Thesis() {
             The thesis
           </p>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Right now, you're renting your tools.
+            Right now, your work is a prisoner.
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-white/60">
             The forms, docs, calendars, and files your business runs on are its
-            most valuable asset — and they live on Big Tech's computers, under
-            Big Tech's rules. You can be locked out, mined, or shut down at any
-            time. Formstr changes that: your work, your keys, yours to keep.
+            most valuable asset — and they're held on Big Tech's computers,
+            behind Big Tech's locks. You can be locked out, watched, or shut down
+            at any time. Formstr changes that: your work, your keys, yours to
+            keep.
           </p>
         </div>
 
         <div className="mt-12 grid gap-5 md:grid-cols-2">
           <div className="reveal reveal-left rounded-2xl border border-white/10 bg-white/[0.03] p-7">
             <p className="mb-5 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-white/40">
-              <Lock size={16} /> Renting
+              <Lock size={16} /> Locked up
             </p>
             <ul className="space-y-3.5">
-              {rented.map((r) => (
+              {caged.map((r) => (
                 <li key={r} className="flex gap-3 text-white/55">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/30" />
                   <span className="leading-relaxed line-through decoration-white/20">
@@ -909,10 +910,10 @@ function Thesis() {
           </div>
           <div className="reveal reveal-right rounded-2xl border border-primary/30 bg-primary/[0.07] p-7">
             <p className="mb-5 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-primary-light">
-              <KeyRound size={16} /> Owning
+              <KeyRound size={16} /> Free
             </p>
             <ul className="space-y-3.5">
-              {owned.map((o) => (
+              {freed.map((o) => (
                 <li key={o} className="flex gap-3 text-white/90">
                   <Check
                     size={18}
@@ -941,9 +942,9 @@ function Suite() {
             One key. The whole suite is yours.
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-gray-600">
-            A growing set of decentralized apps — each one replacing a rented
-            tool your business relies on today. Sign in once with your Nostr key
-            and they all work together.
+            A growing set of decentralized apps — each one replaces a tool that
+            holds your business's work captive today. Sign in once with your
+            Nostr key and they all work together.
           </p>
         </div>
 
@@ -1195,7 +1196,7 @@ export function Footer() {
             <Asterisk className="h-9 w-9" />
             <div>
               <p className="font-mono text-lg font-bold italic">form*</p>
-              <p className="text-sm text-white/50">Own it, don't rent it.</p>
+              <p className="text-sm text-white/50">Free it, don't cage it.</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/60">

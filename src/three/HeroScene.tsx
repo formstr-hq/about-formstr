@@ -36,23 +36,39 @@ const ROBOT_URL = "/RobotExpressive.glb";
 const FONT_URL = "/fonts/brand.typeface.json";
 useGLTF.preload(ROBOT_URL);
 
-// Celebration: both arms raised overhead and held there (joy / "hands up").
-// Celebration pose. The dome head is wider than the shoulders, so raising the
-// arms laterally (local Z) hides them behind the head. Instead we flex them
-// FORWARD-and-up (local X, toward the camera) so the hands read clearly above
-// the head, with a little lateral spread (local Z) for a "V".
-// Celebration pose. Verified against the rig: local X flexes the arm
-// FORWARD-and-up (toward the camera, so the hands clear the wide dome head),
-// local Z abducts it out to the side (which hides it behind the head).
-const ARM_RAISE = 2.6; // forward-up flexion on X
-const ARM_SPREAD = 0.35; // a little outward spread on Z for a "V"
+// Celebration = a disco "point": one arm up to the sky, the other low and
+// across — an unmistakable, joyful pose (rig axes: Z abducts out to the side,
+// X flexes forward toward the camera). Live-tunable via window.__pose.
+const POSE = {
+  upZ: -2.4, // raised arm: up-and-out toward the sky, tilted forward to clear
+  upX: 1.3, //  the dome so it reads clearly
+  dnZ: 0.5, // lowered arm: down-and-out (the low diagonal)
+  dnX: 0.2,
+  upBend: 0.06, // raised forearm nearly straight → a clean "point"
+  dnBend: 0.95, // lowered forearm bent toward the hip
+};
+
+// Debug: load with #posecheck to freeze the celebration (no orbs, no jump,
+// held at full raise) so the arm pose can be inspected cleanly; also exposes
+// window.__pose for live tuning in the console.
+const DEBUG_POSE =
+  typeof window !== "undefined" && window.location.hash.includes("posecheck");
+if (DEBUG_POSE) {
+  (window as unknown as { __pose: typeof POSE }).__pose = POSE;
+}
 
 /* ================================================================== */
 /* The subject — a rigged robot that sits trapped, then walks free    */
 /* and celebrates. Animation state is driven by scroll progress.      */
 /* ================================================================== */
 
-function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
+function RobotCharacter({
+  progressRef,
+  pointerRef,
+}: {
+  progressRef: { current: number };
+  pointerRef: { current: { x: number; y: number } };
+}) {
   const group = useRef<THREE.Group>(null);
   const { scene, animations } = useGLTF(ROBOT_URL);
   const { actions } = useAnimations(animations, group);
@@ -95,17 +111,26 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
   const armR = useRef<THREE.Object3D | null>(null);
   const foreL = useRef<THREE.Object3D | null>(null);
   const foreR = useRef<THREE.Object3D | null>(null);
+  const head = useRef<THREE.Object3D | null>(null);
+  // Head-follow spring state.
+  const headYaw = useRef(0);
+  const headYawV = useRef(0);
+  const headPitch = useRef(0);
+  const headPitchV = useRef(0);
 
   useEffect(() => {
     // GLTFLoader strips dots from node names, so "UpperArm.L" → "UpperArmL".
     scene.traverse((o) => {
       const n = o.name;
+      const bone = o as THREE.Bone;
       if (/upperarm/i.test(n)) {
         if (/l$/i.test(n)) armL.current = o;
         else if (/r$/i.test(n)) armR.current = o;
       } else if (/lowerarm/i.test(n)) {
         if (/l$/i.test(n)) foreL.current = o;
         else if (/r$/i.test(n)) foreR.current = o;
+      } else if (n === "Head" && bone.isBone) {
+        head.current = o;
       }
     });
   }, [scene]);
@@ -143,9 +168,13 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
       // Idle base under the celebration so the raised-arm pose reads as a
       // held cheer rather than a frozen dance frame.
       fadeTo(celebrating ? "Idle" : "Walking");
+      // A little celebratory hop: lifts off, then rests on the ground between
+      // jumps (max(0, sin) gives the pause; the rest of the cycle is grounded).
+      const hop =
+        celebrating && !DEBUG_POSE ? Math.max(0, Math.sin(t * 3.0)) * 0.22 : 0;
       g.position.set(
         THREE.MathUtils.lerp(paceX.current, 0, out),
-        GROUND + (celebrating ? Math.abs(Math.sin(t * 3.1)) * 0.05 : 0),
+        GROUND + hop,
         THREE.MathUtils.lerp(0.4, 1.15, out),
       );
       // Turn to face the camera (yaw 0) as it walks out.
@@ -164,27 +193,39 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
     if (raise > 0.001) {
       const L = THREE.MathUtils.lerp;
       const sway = Math.sin(t * 2.4) * 0.06; // gentle life in the held pose
-      // Raise both arms forward-and-up (X) with a small outward spread (Z),
-      // blending from the live Idle pose so it eases in.
-      if (armL.current) {
-        const r = armL.current.rotation;
-        r.x = L(r.x, ARM_RAISE + sway, raise);
-        r.z = L(r.z, ARM_SPREAD, raise);
-        r.y = L(r.y, 0, raise);
-      }
+      // Disco point: robot's RIGHT arm (armR) up to the sky, LEFT arm (armL)
+      // low across the body. Blended from the live Idle pose so it eases in.
       if (armR.current) {
         const r = armR.current.rotation;
-        r.x = L(r.x, ARM_RAISE - sway, raise);
-        r.z = L(r.z, -ARM_SPREAD, raise);
+        r.z = L(r.z, POSE.upZ - sway, raise);
+        r.x = L(r.x, POSE.upX, raise);
         r.y = L(r.y, 0, raise);
       }
-      // straighten forearms so the hands reach up rather than curl at the chest
-      for (const f of [foreL.current, foreR.current]) {
-        if (!f) continue;
-        f.rotation.x = L(f.rotation.x, 0, raise);
-        f.rotation.y = L(f.rotation.y, 0, raise);
-        f.rotation.z = L(f.rotation.z, 0, raise);
+      if (armL.current) {
+        const r = armL.current.rotation;
+        r.z = L(r.z, POSE.dnZ, raise);
+        r.x = L(r.x, POSE.dnX, raise);
+        r.y = L(r.y, 0, raise);
       }
+      // raised forearm nearly straight (a clean point); lowered forearm bent in
+      if (foreR.current) foreR.current.rotation.set(L(0, POSE.upBend, raise), 0, 0);
+      if (foreL.current) foreL.current.rotation.set(L(0, POSE.dnBend, raise), 0, 0);
+    }
+
+    // Head follows the cursor via an under-damped spring: controllable, but
+    // with a little playful overshoot/wobble. Absolute (no accumulation).
+    if (head.current && p >= 0.6) {
+      const ptr = pointerRef.current;
+      const ty = ptr.x * 0.5;
+      const tx = -ptr.y * 0.28;
+      headYawV.current = (headYawV.current + (ty - headYaw.current) * 0.14) * 0.78;
+      headYaw.current += headYawV.current;
+      headPitchV.current =
+        (headPitchV.current + (tx - headPitch.current) * 0.14) * 0.78;
+      headPitch.current += headPitchV.current;
+      head.current.rotation.y = headYaw.current;
+      head.current.rotation.x = headPitch.current;
+      head.current.rotation.z = Math.sin(t * 1.7) * 0.04; // gentle idle tilt
     }
   });
 
@@ -631,25 +672,25 @@ function TheKey({ progress }: { progress: number }) {
         <FormstrMark glow={act2} />
       </group>
 
-      {/* ---- "form" as a subtle etched engraving down the shaft ---- */}
-      <group position={[-0.07, 0.12, 0.078]} rotation={[0, 0, -Math.PI / 2]}>
+      {/* ---- "form*" engraved down the shaft (light so it actually reads) ---- */}
+      <group position={[-0.1, 0.34, 0.12]} rotation={[0, 0, -Math.PI / 2]}>
         <Text3D
           font={FONT_URL}
-          size={0.19}
-          height={0.02}
+          size={0.2}
+          height={0.03}
           bevelEnabled
-          bevelThickness={0.004}
-          bevelSize={0.004}
+          bevelThickness={0.006}
+          bevelSize={0.006}
           bevelSegments={2}
           curveSegments={5}
         >
-          form
-          <meshPhysicalMaterial
-            color="#5a1c00"
-            metalness={0.6}
-            roughness={0.6}
-            clearcoat={0.3}
-            envMapIntensity={0.7}
+          form*
+          <meshStandardMaterial
+            color="#fff1de"
+            metalness={0.4}
+            roughness={0.35}
+            emissive="#ffb060"
+            emissiveIntensity={0.25}
           />
         </Text3D>
       </group>
@@ -846,13 +887,15 @@ function Act3Owned({
   return (
     <group>
       <GraphFloor act3={act3} />
-      <Hub act3={act3} />
-      <AppConstellation
-        act3={act3}
-        hoveredOrb={hoveredOrb}
-        onHover={onHover}
-        onSelect={onSelect}
-      />
+      {!DEBUG_POSE && <Hub act3={act3} />}
+      {!DEBUG_POSE && (
+        <AppConstellation
+          act3={act3}
+          hoveredOrb={hoveredOrb}
+          onHover={onHover}
+          onSelect={onSelect}
+        />
+      )}
     </group>
   );
 }
@@ -995,7 +1038,7 @@ function SceneContent({
       <Act1Backdrop progress={p} />
       <CompromisedScreen progress={p} />
       <Cage progress={p} />
-      <RobotCharacter progressRef={progressRef} />
+      <RobotCharacter progressRef={progressRef} pointerRef={pointerRef} />
       <TheKey progress={p} />
       <Act3Owned
         progress={p}
