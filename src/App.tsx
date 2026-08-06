@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import type { CSSProperties } from "react";
 import {
   BarChart3,
@@ -22,6 +22,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import "./index.css";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import { useHeroScroll, useCanRender3D } from "./three/useHeroScroll";
+
+/* Lazy 3D scene — only loaded client-side, never in the SSR bundle. */
+const HeroScene = lazy(() => import("./three/HeroScene"));
 
 /* Stagger helper: delays a `.reveal` element's transition so grid siblings
    cascade in one after another instead of all at once. */
@@ -323,129 +327,7 @@ const principles = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Constellation hero                                                  */
-/* ------------------------------------------------------------------ */
-
-function ConstellationNode({ app, index }: { app: App; index: number }) {
-  const left = (app.x / 600) * 100;
-  const top = (app.y / 600) * 100;
-  const openLeft = app.x > 300; // node on the right → open preview to the left
-
-  return (
-    <div
-      className="absolute z-10 hover:z-50 focus-within:z-50"
-      style={{ left: `${left}%`, top: `${top}%`, transform: "translate(-50%, -50%)" }}
-    >
-      <div
-        className="group relative z-10 float hover:z-30 focus-within:z-30"
-        style={{ animationDelay: `${index * 0.8}s` }}
-      >
-        <a
-          href={app.url ?? "#apps"}
-          target={app.url ? "_blank" : undefined}
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-full border border-black/10 bg-white px-3.5 py-2 shadow-sm transition-all hover:-translate-y-0.5 hover:border-black/20 hover:shadow-md"
-        >
-          <span className="h-3 w-3 rounded-full" style={{ background: app.color }} />
-          <span className="text-sm font-bold text-ink">{app.name}</span>
-        </a>
-
-        {/* hover preview — the real screenshot unfolds. padding (not margin)
-            bridges the gap so the mouse can travel onto it without it closing */}
-        <a
-          href={app.url ?? "#apps"}
-          target={app.url ? "_blank" : undefined}
-          rel="noopener noreferrer"
-          className={`pointer-events-none absolute top-1/2 z-30 block w-64 -translate-y-1/2 scale-95 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:scale-100 group-focus-within:opacity-100 group-focus-within:pointer-events-auto ${
-            openLeft ? "right-full pr-3" : "left-full pl-3"
-          }`}
-        >
-          <div className="overflow-hidden rounded-xl border border-black/10 bg-white shadow-2xl">
-            <div className="flex items-center gap-1.5 bg-ink px-3 py-2">
-              <span className="h-2 w-2 rounded-full" style={{ background: app.color }} />
-              <span className="h-2 w-2 rounded-full bg-white/30" />
-              <span className="h-2 w-2 rounded-full bg-white/30" />
-              <UrlBar url={app.url ?? ""} className="ml-1.5" />
-            </div>
-            {app.shot && (
-              <img
-                src={app.shot}
-                alt={`${app.name} preview`}
-                className="h-36 w-full border-y border-black/5 object-cover object-top"
-              />
-            )}
-            <div className="flex items-center justify-between p-3">
-              <div>
-                <p className="text-sm font-bold text-ink">{app.name}</p>
-                <p className="text-xs font-medium" style={{ color: app.color }}>
-                  {app.tagline}
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-ink">
-                Visit <ArrowUpRight size={13} />
-              </span>
-            </div>
-          </div>
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function Constellation() {
-  return (
-    <div className="relative mx-auto aspect-square w-full max-w-[560px]">
-      {/* glow */}
-      <div
-        className="absolute left-1/2 top-1/2 h-2/3 w-2/3 -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(255,138,0,0.18), transparent 70%)",
-        }}
-      />
-
-      {/* relay links + flowing data pulses */}
-      <svg viewBox="0 0 600 600" className="absolute inset-0 h-full w-full">
-        {apps.map((a, i) => (
-          <g key={a.id}>
-            <line
-              x1="300"
-              y1="300"
-              x2={a.x}
-              y2={a.y}
-              stroke="#ff5c00"
-              strokeOpacity="0.35"
-              strokeWidth="1.6"
-              strokeDasharray="2 6"
-              strokeLinecap="round"
-            />
-            <circle r="4" fill="#ff5c00">
-              <animateMotion
-                dur="3.4s"
-                repeatCount="indefinite"
-                path={`M300 300 L ${a.x} ${a.y}`}
-                begin={`${i * 0.6}s`}
-              />
-            </circle>
-          </g>
-        ))}
-      </svg>
-
-      {/* hub */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <Asterisk className="h-28 w-28 drop-shadow-sm" spin />
-      </div>
-
-      {/* nodes */}
-      {apps.map((a, i) => (
-        <ConstellationNode key={a.id} app={a} index={i} />
-      ))}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Mobile showcase — auto-cycling app preview (constellation is        */
+/* Mobile showcase — auto-cycling app preview (3D hero is              */
 /* desktop-only, so phones get their own interactive demo)             */
 /* ------------------------------------------------------------------ */
 
@@ -709,62 +591,162 @@ function ProductCard({ product, index = 0 }: { product: Product; index?: number 
 /* ------------------------------------------------------------------ */
 
 function Hero() {
-  return (
-    <section className="relative overflow-hidden bg-grid">
-      <div className="absolute inset-0 bg-grid-lg" />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-2 lg:pb-28 lg:pt-24">
-        <div>
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-primary">
-            <Asterisk className="h-3.5 w-3.5" /> Own it, don't rent it
-          </div>
-          <h1 className="text-5xl font-extrabold leading-[1.04] tracking-tight text-ink sm:text-6xl">
-            Your life's work
-            <br />
-            shouldn't have
-            <br />
-            a <span className="text-primary">landlord.</span>
-          </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-gray-600">
-            Forms, docs, calendars, files — the tools your business runs on.
-            Encrypted with keys only you hold, on relays you pick —{" "}
-            <span className="font-semibold text-ink">
-              security you can actually verify.
-            </span>
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a
-              href="#apps"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-            >
-              Explore the suite <ArrowRight size={16} />
-            </a>
-            <a
-              href="#privacy"
-              className="inline-flex items-center gap-2 rounded-xl border border-ink/15 px-6 py-3.5 text-sm font-semibold text-ink transition-colors hover:bg-black/[0.03]"
-            >
-              Why it's secure
-            </a>
-          </div>
-          <p className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-            <KeyRound size={15} className="text-primary" />
-            Bring your own Nostr key, or create one with us in a tap.
-          </p>
+  const heroRef = useRef<HTMLElement>(null);
+  const progressRef = useRef(0);
+  const pointerRef = useRef({ x: 0, y: 0 });
+  const canRender = useCanRender3D();
+  const [hoveredOrb, setHoveredOrb] = useState<string | null>(null);
 
-          {/* mobile interactive showcase (constellation is desktop-only) */}
-          <div className="mt-10 lg:hidden">
-            <MobileShowcase />
-            <p className="mt-3 text-center text-sm text-gray-400">
-              One key, every app. Tap to explore →
+  // Drive the 3D scene + CSS overlay vars from native scroll
+  useHeroScroll(heroRef, progressRef, canRender);
+
+  return (
+    <section
+      ref={heroRef}
+      className={`hero-section relative ${canRender ? "" : "hero-static"}`}
+      style={{ height: canRender ? "300vh" : undefined }}
+    >
+      <div
+        className={`w-full overflow-hidden bg-ink ${
+          canRender ? "sticky top-0 h-screen" : "relative min-h-[85vh]"
+        }`}
+      >
+        {/* ---- Poster fallback (always in DOM; hidden when canvas is active) ---- */}
+        <div
+          className={`hero-poster absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-700 ${
+            canRender ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
+          aria-hidden={canRender}
+        >
+          {/* Dark gradient with brand glow */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse at 50% 50%, rgba(255,92,0,0.15) 0%, transparent 60%), radial-gradient(ellipse at 50% 100%, rgba(255,138,0,0.08) 0%, transparent 50%)",
+            }}
+          />
+          <Asterisk className="h-24 w-24 opacity-30" spin />
+        </div>
+
+        {/* ---- 3D Canvas (client-only, lazy-loaded) ---- */}
+        {canRender && (
+          <Suspense fallback={null}>
+            <HeroScene
+              progressRef={progressRef}
+              pointerRef={pointerRef}
+              hoveredOrb={hoveredOrb}
+              onHoverOrb={setHoveredOrb}
+            />
+          </Suspense>
+        )}
+
+        {/* ---- Legibility scrim behind copy (only when 3D is active) ---- */}
+        {canRender && (
+          <div
+            className="hero-scrim pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(105deg, rgba(5,5,8,0.82) 0%, rgba(5,5,8,0.45) 28%, transparent 55%), linear-gradient(0deg, rgba(5,5,8,0.7) 0%, transparent 32%)",
+            }}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* ---- Copy overlays (real DOM, prerendered for SEO) ---- */}
+        <div className="hero-overlays absolute inset-0 pointer-events-none">
+          <div className="absolute bottom-0 left-0 w-full max-w-2xl px-6 pb-14 sm:px-10 lg:pb-20">
+          {/* Act 1 (the SEO headline) */}
+          <div
+            className="hero-act hero-act-1"
+            style={{ opacity: "var(--act1, 0)" } as CSSProperties}
+          >
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-primary-light backdrop-blur-sm">
+              <Asterisk className="h-3.5 w-3.5" /> Own it, don't rent it
+            </div>
+            <h1 className="text-5xl font-extrabold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl">
+              Your life's work
+              <br />
+              shouldn't have
+              <br />a <span className="text-primary-light">landlord.</span>
+            </h1>
+            <p className="mt-5 max-w-md text-base leading-relaxed text-white/60 sm:text-lg">
+              Forms, docs, polls, schedules, files — encrypted with keys only
+              you hold, on relays you pick.{" "}
+              <span className="font-semibold text-white">
+                Privacy you can actually verify.
+              </span>
             </p>
+            <div className="mt-7 flex flex-wrap gap-3 pointer-events-auto">
+              <a
+                href="#apps"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30"
+              >
+                Explore the suite <ArrowRight size={16} />
+              </a>
+              <a
+                href="#privacy"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 text-sm font-semibold text-white/80 backdrop-blur-sm transition-colors hover:bg-white/[0.06]"
+              >
+                Why it's private
+              </a>
+            </div>
+          </div>
+
+          {/* Act 2 — The Key */}
+          <div
+            className="hero-act hero-act-2 absolute bottom-14 left-6 sm:left-10 lg:bottom-20"
+            style={{ opacity: "var(--act2, 0)" } as CSSProperties}
+          >
+            <p className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+              One key.
+            </p>
+            <p className="mt-2 text-lg text-white/55">
+              Encrypted with a key only you hold.
+            </p>
+          </div>
+
+          <div
+            className="hero-act hero-act-3 absolute bottom-14 left-6 sm:left-10 lg:bottom-20"
+            style={{ opacity: "var(--act3, 0)" } as CSSProperties}
+          >
+            <p className="mb-2 h-5 text-sm font-semibold text-primary-light">
+              {hoveredOrb ? apps.find((a) => a.id === hoveredOrb)?.name : "\u00a0"}
+            </p>
+            <p className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+              The whole suite is yours.
+            </p>
+            <p className="mt-2 max-w-md text-lg text-white/55">
+              One key, every app. Open source, yours to keep.
+            </p>
+            <div className="mt-6 pointer-events-auto">
+              <a
+                href="#apps"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30"
+              >
+                Explore the suite <ArrowRight size={16} />
+              </a>
+            </div>
+          </div>
+          </div>
+
+          {/* scroll hint at the top of the hero */}
+          <div
+            className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 lg:block"
+            style={{ opacity: "var(--act1, 0)" } as CSSProperties}
+          >
+            <ChevronDown size={22} className="animate-bounce text-white/30" />
           </div>
         </div>
 
-        <div className="hidden lg:block">
-          <Constellation />
-          <p className="mt-2 text-center text-sm text-gray-400">
-            One key, every app.{" "}
-            <span className="text-gray-500">Hover one to look inside →</span>
-          </p>
+        {/* ---- Mobile fallback (visible below lg breakpoint) ---- */}
+        <div className="hero-mobile absolute inset-x-0 bottom-0 px-6 pb-8 lg:hidden">
+          <div className="mx-auto max-w-sm">
+            <MobileShowcase />
+            <p className="mt-3 text-center text-sm text-white/40">
+              One key, every app. Tap to explore →
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -785,7 +767,7 @@ function Thesis() {
     "Free, open source, and interoperable by design",
   ];
   return (
-    <section id="thesis" className="border-t border-black/5 bg-ink text-white">
+    <section id="thesis" className="bg-ink text-white">
       <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
         <div className="reveal max-w-2xl">
           <p className="mb-3 text-sm font-bold uppercase tracking-widest text-primary-light">
