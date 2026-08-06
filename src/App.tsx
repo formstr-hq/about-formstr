@@ -846,15 +846,19 @@ function Hero() {
           />
         )}
 
-        {/* ---- Mobile fallback (visible below lg breakpoint) ---- */}
-        <div className="hero-mobile absolute inset-x-0 bottom-0 px-6 pb-8 lg:hidden">
-          <div className="mx-auto max-w-sm">
-            <MobileShowcase />
-            <p className="mt-3 text-center text-sm text-white/40">
-              One key, every app. Tap to explore →
-            </p>
+        {/* ---- Static fallback showcase — only when the 3D scene can't run
+             (no WebGL / reduced-motion). When the scene runs on mobile this
+             is hidden so it doesn't overlap the canvas. ---- */}
+        {!canRender && (
+          <div className="hero-mobile absolute inset-x-0 bottom-0 px-6 pb-8 lg:hidden">
+            <div className="mx-auto max-w-sm">
+              <MobileShowcase />
+              <p className="mt-3 text-center text-sm text-white/40">
+                One key, every app. Tap to explore →
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );

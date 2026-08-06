@@ -36,14 +36,15 @@ function webglAvailable(): boolean {
   }
 }
 
-/** The 3D scene is a desktop-width, motion-OK, WebGL-capable experience. */
+/** The 3D scene is a motion-OK, WebGL-capable experience (desktop + mobile). */
 export function canRender3D(): boolean {
   if (typeof window === "undefined") return false;
   const reduce =
     typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduce) return false;
-  if (window.innerWidth < 1024) return false; // phones/tablets → static/mobile fallback
+  // The scene runs on phones too (touch-scroll drives the acts); the only
+  // gates are motion preference and WebGL support.
   return webglAvailable();
 }
 

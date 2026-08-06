@@ -10,7 +10,7 @@ import {
 } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { smoothstep, band } from "./useHeroScroll";
+import { smoothstep, band, clamp01 } from "./useHeroScroll";
 
 /* ------------------------------------------------------------------ */
 /* Brand palette + constants                                           */
@@ -35,6 +35,13 @@ const GROUND = -1.5;
 const ROBOT_URL = "/RobotExpressive.glb";
 const FONT_URL = "/fonts/brand.typeface.json";
 useGLTF.preload(ROBOT_URL);
+
+// Coarse-pointer / small-screen device (the HeroScene chunk is client-only, so
+// window is available). Drives touch/perf tweaks: no cursor parallax, lighter
+// shadows/transmission, and a pulled-back camera for portrait framing.
+const IS_MOBILE =
+  typeof window !== "undefined" &&
+  (window.matchMedia?.("(pointer: coarse)").matches || window.innerWidth < 820);
 
 // Celebration = a disco "point": one arm up to the sky, the other low and
 // across — an unmistakable, joyful pose (rig axes: Z abducts out to the side,
@@ -216,8 +223,10 @@ function RobotCharacter({
     // with a little playful overshoot/wobble. Absolute (no accumulation).
     if (head.current && p >= 0.6) {
       const ptr = pointerRef.current;
-      const ty = ptr.x * 0.5;
-      const tx = -ptr.y * 0.28;
+      // Desktop follows the cursor; mobile has no cursor, so the head does a
+      // gentle autonomous "looking around" sway instead of chasing touch.
+      const ty = IS_MOBILE ? Math.sin(t * 0.7) * 0.28 : ptr.x * 0.5;
+      const tx = IS_MOBILE ? Math.sin(t * 0.9) * 0.1 : -ptr.y * 0.28;
       headYawV.current = (headYawV.current + (ty - headYaw.current) * 0.14) * 0.78;
       headYaw.current += headYawV.current;
       headPitchV.current =
@@ -822,9 +831,9 @@ function AppConstellation({
                 depthWrite={false}
               />
             </lineSegments>
+            {/* Enlarged invisible hit target — forgiving to tap on phones. */}
             <mesh
               position={pos}
-              scale={hovered ? 1.55 : 1}
               onPointerOver={(e) => {
                 e.stopPropagation();
                 onHover(app.id);
@@ -839,8 +848,14 @@ function AppConstellation({
                 onSelect(app.id);
               }}
             >
+              <sphereGeometry args={[IS_MOBILE ? 0.6 : 0.42, 16, 16]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+            <mesh position={pos} scale={hovered ? 1.55 : 1}>
               <sphereGeometry args={[0.22, 48, 48]} />
               <MeshTransmissionMaterial
+                samples={IS_MOBILE ? 4 : 10}
+                resolution={IS_MOBILE ? 512 : 1024}
                 color={app.color}
                 thickness={0.6}
                 roughness={0.05}
@@ -911,7 +926,7 @@ function CameraRig({
   progressRef: { current: number };
   pointerRef: { current: { x: number; y: number } };
 }) {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const targetRef = useRef(new THREE.Vector3());
   const lookRef = useRef(new THREE.Vector3());
   const curLookRef = useRef(new THREE.Vector3(0, GROUND + 0.6, 0));
@@ -936,12 +951,30 @@ function CameraRig({
     const t23 = smoothstep(0.58, 0.76, p);
 
     target.copy(A1).lerp(A2, t12).lerp(A3, t23);
-    target.x += ptr.x * 0.6;
-    target.y += ptr.y * 0.3;
+
+    // Portrait/narrow screens have a tiny horizontal FOV, so push the camera
+    // back along its view axis to fit the wide scene. fit = 1 on landscape,
+    // rising as the aspect narrows.
+    look.copy(L1).lerp(L2, t12).lerp(L3, t23);
+    const aspect = size.width / Math.max(1, size.height);
+    if (aspect < 1.35) {
+      const fit = THREE.MathUtils.lerp(
+        1,
+        2.1,
+        clamp01((1.35 - aspect) / 1.0),
+      );
+      target.z = look.z + (target.z - look.z) * fit;
+      target.y = look.y + (target.y - look.y) * fit;
+    }
+
+    // Cursor parallax on desktop only; touch-drag shouldn't swing the camera.
+    if (!IS_MOBILE) {
+      target.x += ptr.x * 0.6;
+      target.y += ptr.y * 0.3;
+      look.x += ptr.x * 0.3;
+    }
     camera.position.lerp(target, 0.06);
 
-    look.copy(L1).lerp(L2, t12).lerp(L3, t23);
-    look.x += ptr.x * 0.3;
     curLookRef.current.lerp(look, 0.06);
     camera.lookAt(curLookRef.current);
   });
@@ -1081,10 +1114,11 @@ export default function HeroScene({
 }) {
   return (
     <Canvas
-      dpr={[1, 2]}
-      shadows
+      dpr={IS_MOBILE ? [1, 1.75] : [1, 2]}
+      shadows={!IS_MOBILE}
       gl={{
-        antialias: true,
+        antialias: !IS_MOBILE,
+        powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: 1.1,
         outputColorSpace: THREE.SRGBColorSpace,
