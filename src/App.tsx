@@ -688,9 +688,24 @@ function Hero() {
   const canRender = useCanRender3D();
   const [hoveredOrb, setHoveredOrb] = useState<string | null>(null);
   const [selectedOrb, setSelectedOrb] = useState<string | null>(null);
+  // Pause the 3D render loop when the hero is scrolled out of view.
+  const [sceneActive, setSceneActive] = useState(true);
 
   // Drive the 3D scene + CSS overlay vars from native scroll
   useHeroScroll(heroRef, progressRef, canRender);
+
+  // Only render the WebGL scene while the hero is on screen — saves GPU,
+  // battery and heat while the rest of the page is being read.
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el || !canRender || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => setSceneActive(entry.isIntersecting),
+      { rootMargin: "100px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [canRender]);
 
   return (
     <section
@@ -732,6 +747,7 @@ function Hero() {
               hoveredOrb={hoveredOrb}
               onHoverOrb={setHoveredOrb}
               onSelectOrb={setSelectedOrb}
+              active={sceneActive}
             />
           </Suspense>
         )}

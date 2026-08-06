@@ -852,24 +852,44 @@ function AppConstellation({
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
             <mesh position={pos} scale={hovered ? 1.55 : 1}>
-              <sphereGeometry args={[0.22, 48, 48]} />
-              <MeshTransmissionMaterial
-                samples={IS_MOBILE ? 4 : 10}
-                resolution={IS_MOBILE ? 512 : 1024}
-                color={app.color}
-                thickness={0.6}
-                roughness={0.05}
-                transmission={1}
-                ior={1.45}
-                chromaticAberration={0.04}
-                anisotropy={0.2}
-                distortion={0.1}
-                distortionScale={0.2}
-                temporalDistortion={0}
-                envMapIntensity={1.5}
-                emissive={app.color}
-                emissiveIntensity={(hovered ? 0.6 : 0.15) * act3}
-              />
+              <sphereGeometry args={[0.22, IS_MOBILE ? 24 : 48, IS_MOBILE ? 24 : 48]} />
+              {IS_MOBILE ? (
+                // Cheap glossy glass — avoids the per-orb scene render that
+                // MeshTransmissionMaterial does (5 extra passes/frame = heat).
+                <meshPhysicalMaterial
+                  color={app.color}
+                  roughness={0.12}
+                  metalness={0}
+                  clearcoat={1}
+                  clearcoatRoughness={0.1}
+                  transmission={0.6}
+                  thickness={0.5}
+                  ior={1.45}
+                  envMapIntensity={1.4}
+                  transparent
+                  opacity={0.9}
+                  emissive={app.color}
+                  emissiveIntensity={(hovered ? 0.6 : 0.25) * act3}
+                />
+              ) : (
+                <MeshTransmissionMaterial
+                  samples={10}
+                  resolution={1024}
+                  color={app.color}
+                  thickness={0.6}
+                  roughness={0.05}
+                  transmission={1}
+                  ior={1.45}
+                  chromaticAberration={0.04}
+                  anisotropy={0.2}
+                  distortion={0.1}
+                  distortionScale={0.2}
+                  temporalDistortion={0}
+                  envMapIntensity={1.5}
+                  emissive={app.color}
+                  emissiveIntensity={(hovered ? 0.6 : 0.15) * act3}
+                />
+              )}
             </mesh>
             <mesh position={pos} scale={hovered ? 1.55 : 1}>
               <sphereGeometry args={[0.09, 24, 24]} />
@@ -1086,6 +1106,7 @@ function SceneContent({
         scale={12}
         blur={2.4}
         far={4}
+        resolution={IS_MOBILE ? 256 : 512}
         color="#000000"
       />
 
@@ -1105,15 +1126,20 @@ export default function HeroScene({
   hoveredOrb,
   onHoverOrb,
   onSelectOrb,
+  active = true,
 }: {
   progressRef: { current: number };
   pointerRef: { current: { x: number; y: number } };
   hoveredOrb: string | null;
   onHoverOrb: (id: string | null) => void;
   onSelectOrb: (id: string) => void;
+  active?: boolean;
 }) {
   return (
     <Canvas
+      // Stop the render loop entirely when the hero is scrolled out of view —
+      // no wasted GPU / battery / heat while reading the rest of the page.
+      frameloop={active ? "always" : "never"}
       dpr={IS_MOBILE ? [1, 1.75] : [1, 2]}
       shadows={!IS_MOBILE}
       gl={{
@@ -1134,7 +1160,7 @@ export default function HeroScene({
           onHoverOrb={onHoverOrb}
           onSelectOrb={onSelectOrb}
         />
-        <EffectComposer>
+        <EffectComposer multisampling={IS_MOBILE ? 0 : 8}>
           <Bloom
             luminanceThreshold={0.6}
             luminanceSmoothing={0.9}
