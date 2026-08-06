@@ -18,6 +18,7 @@ import {
   Check,
   Lock,
   Scale,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import "./index.css";
@@ -590,12 +591,103 @@ function ProductCard({ product, index = 0 }: { product: Product; index?: number 
 /* Sections                                                            */
 /* ------------------------------------------------------------------ */
 
+const APP_BLURBS: Record<string, string> = {
+  formstr:
+    "Build forms and surveys that are end-to-end encrypted — responses only you can read, on relays you choose.",
+  pages:
+    "Write and publish documents you actually own. No platform can lock, mine, or sunset them.",
+  pollerama:
+    "Run polls and watch results in real time, with no middleman deciding what counts.",
+  drive:
+    "Store and share files privately, encrypted with keys that never leave your control.",
+  calendar:
+    "Schedule events and share availability while your data stays entirely yours.",
+};
+
+/* A prominent card that opens when an app orb is clicked in the 3D hero. */
+function AppDetailCard({ app, onClose }: { app: App | null; onClose: () => void }) {
+  // Close on Escape for accessibility.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!app) return null;
+
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center p-6">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
+      />
+      <div
+        className="relative w-full max-w-lg overflow-hidden rounded-2xl border bg-ink shadow-2xl"
+        style={{ borderColor: `${app.color}55` }}
+      >
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-1.5 text-white/70 transition-colors hover:text-white"
+        >
+          <X size={18} />
+        </button>
+        {app.shot && (
+          <div className="relative h-56 w-full overflow-hidden">
+            <img
+              src={app.shot}
+              alt={`${app.name} preview`}
+              className="h-full w-full object-cover object-top"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-ink via-transparent" />
+          </div>
+        )}
+        <div className="p-6">
+          <div className="flex items-center gap-2">
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ background: app.color }}
+            />
+            <span
+              className="text-xs font-bold uppercase tracking-widest"
+              style={{ color: app.color }}
+            >
+              {app.tagline}
+            </span>
+          </div>
+          <h3 className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+            {app.name}
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-white/60">
+            {APP_BLURBS[app.id] ?? "Private by default. Yours to keep."}
+          </p>
+          {app.url && (
+            <a
+              href={app.url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:-translate-y-0.5"
+              style={{ background: app.color }}
+            >
+              Open {app.name} <ArrowUpRight size={16} />
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Hero() {
   const heroRef = useRef<HTMLElement>(null);
   const progressRef = useRef(0);
   const pointerRef = useRef({ x: 0, y: 0 });
   const canRender = useCanRender3D();
   const [hoveredOrb, setHoveredOrb] = useState<string | null>(null);
+  const [selectedOrb, setSelectedOrb] = useState<string | null>(null);
 
   // Drive the 3D scene + CSS overlay vars from native scroll
   useHeroScroll(heroRef, progressRef, canRender);
@@ -604,7 +696,9 @@ function Hero() {
     <section
       ref={heroRef}
       className={`hero-section relative ${canRender ? "" : "hero-static"}`}
-      style={{ height: canRender ? "300vh" : undefined }}
+      // Taller section = slower scroll, so the story plays out instead of
+      // being blown past. ~4.8 screens of scroll for the three acts.
+      style={{ height: canRender ? "480vh" : undefined }}
     >
       <div
         className={`w-full overflow-hidden bg-ink ${
@@ -637,6 +731,7 @@ function Hero() {
               pointerRef={pointerRef}
               hoveredOrb={hoveredOrb}
               onHoverOrb={setHoveredOrb}
+              onSelectOrb={setSelectedOrb}
             />
           </Suspense>
         )}
@@ -730,14 +825,26 @@ function Hero() {
           </div>
           </div>
 
-          {/* scroll hint at the top of the hero */}
+          {/* scroll hint — signals the hero is an interactive scene that
+              plays as you scroll, so it isn't blown past unknowingly */}
           <div
-            className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 lg:block"
+            className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1.5 lg:flex"
             style={{ opacity: "var(--act1, 0)" } as CSSProperties}
           >
-            <ChevronDown size={22} className="animate-bounce text-white/30" />
+            <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/45">
+              Scroll slowly — it plays as you go
+            </span>
+            <ChevronDown size={20} className="animate-bounce text-white/35" />
           </div>
         </div>
+
+        {/* ---- Product card — opens when an app orb is clicked in Act 3 ---- */}
+        {canRender && selectedOrb && (
+          <AppDetailCard
+            app={apps.find((a) => a.id === selectedOrb) ?? null}
+            onClose={() => setSelectedOrb(null)}
+          />
+        )}
 
         {/* ---- Mobile fallback (visible below lg breakpoint) ---- */}
         <div className="hero-mobile absolute inset-x-0 bottom-0 px-6 pb-8 lg:hidden">

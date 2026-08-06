@@ -36,6 +36,10 @@ const ROBOT_URL = "/RobotExpressive.glb";
 const FONT_URL = "/fonts/brand.typeface.json";
 useGLTF.preload(ROBOT_URL);
 
+// Celebration: both arms raised overhead and held there (joy / "hands up").
+const ARM_RAISE = 2.55; // swing the upper arms up
+const ARM_FWD = 0.25; // a touch forward so it reads as a cheer
+
 /* ================================================================== */
 /* The subject — a rigged robot that sits trapped, then walks free    */
 /* and celebrates. Animation state is driven by scroll progress.      */
@@ -79,6 +83,23 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
   // Continuity of the pacing motion into the walk-out.
   const paceX = useRef(0);
   const paceYaw = useRef(Math.PI / 2);
+  // Upper-arm bones, posed manually for the sustained "hands up" finish.
+  const armL = useRef<THREE.Object3D | null>(null);
+  const armR = useRef<THREE.Object3D | null>(null);
+
+  useEffect(() => {
+    armL.current = scene.getObjectByName("UpperArm.L") ?? null;
+    armR.current = scene.getObjectByName("UpperArm.R") ?? null;
+    // eslint-disable-next-line no-console
+    console.log(
+      "[robot] armL=",
+      armL.current?.name,
+      armL.current?.type,
+      "armR=",
+      armR.current?.name,
+      armR.current?.type,
+    );
+  }, [scene]);
 
   // Start pacing the moment the clips are ready.
   useEffect(() => {
@@ -93,6 +114,7 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
     const g = group.current;
     if (!g) return;
     const t = state.clock.elapsedTime;
+    const celebrating = p >= 0.7;
 
     if (p < 0.47) {
       // ---- Act 1: pacing back and forth in the cell ----
@@ -108,10 +130,12 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
     } else {
       // ---- freed: turn, walk out to centre-front, then celebrate ----
       const out = smoothstep(0.5, 0.8, p);
-      fadeTo(p >= 0.7 ? "Dance" : "Walking");
+      // Idle base under the celebration so the raised-arm pose reads as a
+      // held cheer rather than a frozen dance frame.
+      fadeTo(celebrating ? "Idle" : "Walking");
       g.position.set(
         THREE.MathUtils.lerp(paceX.current, 0, out),
-        GROUND,
+        GROUND + (celebrating ? Math.abs(Math.sin(t * 3.1)) * 0.05 : 0),
         THREE.MathUtils.lerp(0.4, 1.15, out),
       );
       g.rotation.y = THREE.MathUtils.lerp(
@@ -119,6 +143,22 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
         Math.PI,
         smoothstep(0.47, 0.64, p),
       );
+    }
+
+    // Override the upper arms only while celebrating (raise > 0), so the
+    // Walking/Idle clips still drive the arms the rest of the time. Runs
+    // after drei's mixer update, so these values win for the render.
+    const raise = smoothstep(0.72, 0.84, p);
+    if (raise > 0.01) {
+      const sway = Math.sin(t * 2.4) * 0.08; // gentle life in the held pose
+      if (armL.current) {
+        armL.current.rotation.z = raise * ARM_RAISE;
+        armL.current.rotation.x = raise * (ARM_FWD + sway);
+      }
+      if (armR.current) {
+        armR.current.rotation.z = -raise * ARM_RAISE;
+        armR.current.rotation.x = raise * (ARM_FWD - sway);
+      }
     }
   });
 
@@ -657,10 +697,12 @@ function AppConstellation({
   act3,
   hoveredOrb,
   onHover,
+  onSelect,
 }: {
   act3: number;
   hoveredOrb: string | null;
   onHover: (id: string | null) => void;
+  onSelect: (id: string) => void;
 }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((_, d) => {
@@ -702,8 +744,16 @@ function AppConstellation({
               onPointerOver={(e) => {
                 e.stopPropagation();
                 onHover(app.id);
+                document.body.style.cursor = "pointer";
               }}
-              onPointerOut={() => onHover(null)}
+              onPointerOut={() => {
+                onHover(null);
+                document.body.style.cursor = "";
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(app.id);
+              }}
             >
               <sphereGeometry args={[0.22, 48, 48]} />
               <MeshTransmissionMaterial
@@ -741,10 +791,12 @@ function Act3Owned({
   progress,
   hoveredOrb,
   onHover,
+  onSelect,
 }: {
   progress: number;
   hoveredOrb: string | null;
   onHover: (id: string | null) => void;
+  onSelect: (id: string) => void;
 }) {
   const act3 = smoothstep(0.62, 0.78, progress);
   if (act3 < 0.01) return null;
@@ -752,7 +804,12 @@ function Act3Owned({
     <group>
       <GraphFloor act3={act3} />
       <Hub act3={act3} />
-      <AppConstellation act3={act3} hoveredOrb={hoveredOrb} onHover={onHover} />
+      <AppConstellation
+        act3={act3}
+        hoveredOrb={hoveredOrb}
+        onHover={onHover}
+        onSelect={onSelect}
+      />
     </group>
   );
 }
@@ -834,11 +891,13 @@ function SceneContent({
   pointerRef,
   hoveredOrb,
   onHoverOrb,
+  onSelectOrb,
 }: {
   progressRef: { current: number };
   pointerRef: { current: { x: number; y: number } };
   hoveredOrb: string | null;
   onHoverOrb: (id: string | null) => void;
+  onSelectOrb: (id: string) => void;
 }) {
   const [p, setP] = useState(0);
   const last = useRef(0);
@@ -895,7 +954,12 @@ function SceneContent({
       <Cage progress={p} />
       <RobotCharacter progressRef={progressRef} />
       <TheKey progress={p} />
-      <Act3Owned progress={p} hoveredOrb={hoveredOrb} onHover={onHoverOrb} />
+      <Act3Owned
+        progress={p}
+        hoveredOrb={hoveredOrb}
+        onHover={onHoverOrb}
+        onSelect={onSelectOrb}
+      />
 
       <ContactShadows
         position={[0, GROUND + 0.01, 0.4]}
@@ -921,11 +985,13 @@ export default function HeroScene({
   pointerRef,
   hoveredOrb,
   onHoverOrb,
+  onSelectOrb,
 }: {
   progressRef: { current: number };
   pointerRef: { current: { x: number; y: number } };
   hoveredOrb: string | null;
   onHoverOrb: (id: string | null) => void;
+  onSelectOrb: (id: string) => void;
 }) {
   return (
     <Canvas
@@ -946,6 +1012,7 @@ export default function HeroScene({
           pointerRef={pointerRef}
           hoveredOrb={hoveredOrb}
           onHoverOrb={onHoverOrb}
+          onSelectOrb={onSelectOrb}
         />
         <EffectComposer>
           <Bloom
