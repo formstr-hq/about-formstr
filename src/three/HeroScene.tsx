@@ -37,8 +37,15 @@ const FONT_URL = "/fonts/brand.typeface.json";
 useGLTF.preload(ROBOT_URL);
 
 // Celebration: both arms raised overhead and held there (joy / "hands up").
-const ARM_RAISE = 2.55; // swing the upper arms up
-const ARM_FWD = 0.25; // a touch forward so it reads as a cheer
+// Celebration pose. The dome head is wider than the shoulders, so raising the
+// arms laterally (local Z) hides them behind the head. Instead we flex them
+// FORWARD-and-up (local X, toward the camera) so the hands read clearly above
+// the head, with a little lateral spread (local Z) for a "V".
+// Celebration pose. Verified against the rig: local X flexes the arm
+// FORWARD-and-up (toward the camera, so the hands clear the wide dome head),
+// local Z abducts it out to the side (which hides it behind the head).
+const ARM_RAISE = 2.6; // forward-up flexion on X
+const ARM_SPREAD = 0.35; // a little outward spread on Z for a "V"
 
 /* ================================================================== */
 /* The subject — a rigged robot that sits trapped, then walks free    */
@@ -83,22 +90,24 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
   // Continuity of the pacing motion into the walk-out.
   const paceX = useRef(0);
   const paceYaw = useRef(Math.PI / 2);
-  // Upper-arm bones, posed manually for the sustained "hands up" finish.
+  // Upper/lower arm bones, posed manually for the sustained "hands up" finish.
   const armL = useRef<THREE.Object3D | null>(null);
   const armR = useRef<THREE.Object3D | null>(null);
+  const foreL = useRef<THREE.Object3D | null>(null);
+  const foreR = useRef<THREE.Object3D | null>(null);
 
   useEffect(() => {
-    armL.current = scene.getObjectByName("UpperArm.L") ?? null;
-    armR.current = scene.getObjectByName("UpperArm.R") ?? null;
-    // eslint-disable-next-line no-console
-    console.log(
-      "[robot] armL=",
-      armL.current?.name,
-      armL.current?.type,
-      "armR=",
-      armR.current?.name,
-      armR.current?.type,
-    );
+    // GLTFLoader strips dots from node names, so "UpperArm.L" → "UpperArmL".
+    scene.traverse((o) => {
+      const n = o.name;
+      if (/upperarm/i.test(n)) {
+        if (/l$/i.test(n)) armL.current = o;
+        else if (/r$/i.test(n)) armR.current = o;
+      } else if (/lowerarm/i.test(n)) {
+        if (/l$/i.test(n)) foreL.current = o;
+        else if (/r$/i.test(n)) foreR.current = o;
+      }
+    });
   }, [scene]);
 
   // Start pacing the moment the clips are ready.
@@ -121,8 +130,9 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
       fadeTo("Walking");
       const x = Math.sin(t * 0.8) * 0.82;
       const dir = Math.cos(t * 0.8); // +ve = moving right
-      // face the travel direction but angled toward camera (3/4 front view)
-      const yaw = dir >= 0 ? -1.0 : 1.0;
+      // forward(yaw) = (sinΘ, 0, cosΘ); yaw 0 faces the camera. ±0.9 keeps
+      // forward.z > 0 (facing us) while forward.x matches the walk direction.
+      const yaw = dir >= 0 ? 0.9 : -0.9;
       paceX.current = x;
       paceYaw.current = yaw;
       g.position.set(x, GROUND, 0.4);
@@ -138,26 +148,42 @@ function RobotCharacter({ progressRef }: { progressRef: { current: number } }) {
         GROUND + (celebrating ? Math.abs(Math.sin(t * 3.1)) * 0.05 : 0),
         THREE.MathUtils.lerp(0.4, 1.15, out),
       );
+      // Turn to face the camera (yaw 0) as it walks out.
       g.rotation.y = THREE.MathUtils.lerp(
         paceYaw.current,
-        Math.PI,
+        0,
         smoothstep(0.47, 0.64, p),
       );
     }
 
-    // Override the upper arms only while celebrating (raise > 0), so the
-    // Walking/Idle clips still drive the arms the rest of the time. Runs
-    // after drei's mixer update, so these values win for the render.
+    // Override the arms only while celebrating (raise > 0), so the Walking/
+    // Idle clips still drive them the rest of the time. This runs after
+    // drei's mixer update, so it blends from the live clip pose toward a
+    // clean overhead cheer: upper arms up-and-out, forearms straightened.
     const raise = smoothstep(0.72, 0.84, p);
-    if (raise > 0.01) {
-      const sway = Math.sin(t * 2.4) * 0.08; // gentle life in the held pose
+    if (raise > 0.001) {
+      const L = THREE.MathUtils.lerp;
+      const sway = Math.sin(t * 2.4) * 0.06; // gentle life in the held pose
+      // Raise both arms forward-and-up (X) with a small outward spread (Z),
+      // blending from the live Idle pose so it eases in.
       if (armL.current) {
-        armL.current.rotation.z = raise * ARM_RAISE;
-        armL.current.rotation.x = raise * (ARM_FWD + sway);
+        const r = armL.current.rotation;
+        r.x = L(r.x, ARM_RAISE + sway, raise);
+        r.z = L(r.z, ARM_SPREAD, raise);
+        r.y = L(r.y, 0, raise);
       }
       if (armR.current) {
-        armR.current.rotation.z = -raise * ARM_RAISE;
-        armR.current.rotation.x = raise * (ARM_FWD - sway);
+        const r = armR.current.rotation;
+        r.x = L(r.x, ARM_RAISE - sway, raise);
+        r.z = L(r.z, -ARM_SPREAD, raise);
+        r.y = L(r.y, 0, raise);
+      }
+      // straighten forearms so the hands reach up rather than curl at the chest
+      for (const f of [foreL.current, foreR.current]) {
+        if (!f) continue;
+        f.rotation.x = L(f.rotation.x, 0, raise);
+        f.rotation.y = L(f.rotation.y, 0, raise);
+        f.rotation.z = L(f.rotation.z, 0, raise);
       }
     }
   });
@@ -507,38 +533,55 @@ function TheKey({ progress }: { progress: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const act2 = band(0.32, 0.42, 0.54, 0.62, progress);
 
-  // The blade (shaft + bit); the bow is the Formstr flower rendered below.
+  // Classic key silhouette: a round ring bow, a slim shaft, and cut teeth.
   const geos = useMemo(() => {
     const ext = {
       steps: 1,
       depth: 0.16,
       bevelEnabled: true,
-      bevelThickness: 0.05,
-      bevelSize: 0.045,
+      bevelThickness: 0.045,
+      bevelSize: 0.04,
       bevelSegments: 6,
     };
-    // A flat, slightly wider blade so the "form" wordmark can be engraved
-    // down its length.
+
+    // ring bow (the head you'd hang on a keyring)
+    const bow = new THREE.Shape();
+    bow.absarc(0, 1.06, 0.5, 0, Math.PI * 2, false);
+    const bowHole = new THREE.Path();
+    bowHole.absarc(0, 1.06, 0.31, 0, Math.PI * 2, true);
+    bow.holes.push(bowHole);
+
+    // a collar linking the bow to the shaft
+    const collar = new THREE.Shape();
+    collar.moveTo(-0.1, 0.62);
+    collar.lineTo(0.1, 0.62);
+    collar.lineTo(0.14, 0.5);
+    collar.lineTo(-0.14, 0.5);
+    collar.closePath();
+
+    // slim shaft
     const shaft = new THREE.Shape();
-    shaft.moveTo(-0.2, 0.62);
-    shaft.lineTo(0.2, 0.62);
-    shaft.lineTo(0.2, -1.2);
-    shaft.lineTo(-0.2, -1.2);
+    shaft.moveTo(-0.14, 0.54);
+    shaft.lineTo(0.14, 0.54);
+    shaft.lineTo(0.14, -1.2);
+    shaft.lineTo(-0.14, -1.2);
     shaft.closePath();
 
     // teeth cut into the bottom-right edge
     const bit = new THREE.Shape();
-    bit.moveTo(0.2, -1.15);
-    bit.lineTo(0.48, -1.15);
-    bit.lineTo(0.48, -0.97);
-    bit.lineTo(0.32, -0.97);
-    bit.lineTo(0.32, -0.8);
-    bit.lineTo(0.46, -0.8);
-    bit.lineTo(0.46, -0.62);
-    bit.lineTo(0.2, -0.62);
+    bit.moveTo(0.14, -1.15);
+    bit.lineTo(0.44, -1.15);
+    bit.lineTo(0.44, -0.98);
+    bit.lineTo(0.28, -0.98);
+    bit.lineTo(0.28, -0.82);
+    bit.lineTo(0.42, -0.82);
+    bit.lineTo(0.42, -0.66);
+    bit.lineTo(0.14, -0.66);
     bit.closePath();
 
     const list = [
+      new THREE.ExtrudeGeometry(bow, ext),
+      new THREE.ExtrudeGeometry(collar, ext),
       new THREE.ExtrudeGeometry(shaft, ext),
       new THREE.ExtrudeGeometry(bit, ext),
     ];
@@ -567,12 +610,7 @@ function TheKey({ progress }: { progress: number }) {
 
   return (
     <group ref={groupRef} scale={0.42}>
-      {/* ---- bow: the Formstr gear-flower asterisk (the brand mark) ---- */}
-      <group position={[0, 1.0, 0]} scale={0.82}>
-        <FormstrMark glow={act2} />
-      </group>
-
-      {/* ---- blade: polished brand-orange metal, like a real key ---- */}
+      {/* ---- the key body: ring bow + shaft + teeth, orange metal ---- */}
       {geos.map((g, i) => (
         <mesh key={i} geometry={g}>
           <meshPhysicalMaterial
@@ -588,11 +626,16 @@ function TheKey({ progress }: { progress: number }) {
         </mesh>
       ))}
 
+      {/* ---- the Formstr asterisk, set inside the ring as a brand emblem ---- */}
+      <group position={[0, 1.06, 0.01]} scale={0.44}>
+        <FormstrMark glow={act2} />
+      </group>
+
       {/* ---- "form" as a subtle etched engraving down the shaft ---- */}
-      <group position={[-0.08, 0.16, 0.078]} rotation={[0, 0, -Math.PI / 2]}>
+      <group position={[-0.07, 0.12, 0.078]} rotation={[0, 0, -Math.PI / 2]}>
         <Text3D
           font={FONT_URL}
-          size={0.23}
+          size={0.19}
           height={0.02}
           bevelEnabled
           bevelThickness={0.004}
@@ -839,12 +882,12 @@ function CameraRig({
     // camera positions
     const A1 = new THREE.Vector3(0, GROUND + 1.55, 5.7); // cell: screen + pacing
     const A2 = new THREE.Vector3(0.45, GROUND + 1.1, 3.4); // push to the lock
-    const A3 = new THREE.Vector3(0, GROUND + 2.4, 7.4); // pull back: celebrate
+    const A3 = new THREE.Vector3(0, GROUND + 1.4, 6.0); // eye-level: celebrate
 
     // look targets
     const L1 = new THREE.Vector3(0, GROUND + 1.15, -0.1);
     const L2 = new THREE.Vector3(0, GROUND + 0.9, 1.3);
-    const L3 = new THREE.Vector3(0, GROUND + 1.25, 0.4);
+    const L3 = new THREE.Vector3(0, GROUND + 1.35, 0.6);
 
     const t12 = smoothstep(0.24, 0.44, p);
     const t23 = smoothstep(0.58, 0.76, p);
