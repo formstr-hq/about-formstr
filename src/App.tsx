@@ -797,7 +797,7 @@ function Hero() {
               One key.
             </p>
             <p className="mt-2 text-lg text-white/55">
-              Encrypted with a key only you hold.
+              Only you hold it — and nothing opens without it.
             </p>
           </div>
 

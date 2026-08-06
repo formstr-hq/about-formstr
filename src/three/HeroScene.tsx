@@ -233,7 +233,7 @@ function RobotCharacter({
 }
 
 /* ================================================================== */
-/* The monitor running "Compromised Docs" — the subject's work, held   */
+/* The monitor running "Prison Docs" — the subject's work, held        */
 /* hostage. Stands at the back of the cell, screen facing the camera.  */
 /* ================================================================== */
 
@@ -302,8 +302,8 @@ function CompromisedScreen({ progress }: { progress: number }) {
       </mesh>
       {/* app name */}
       <group position={[-SCREEN_W / 2 + 0.32, cy + SCREEN_H / 2 - 0.225, zface]}>
-        <Text3D font={FONT_URL} size={0.12} height={0.01} curveSegments={4}>
-          Compromised Docs
+        <Text3D font={FONT_URL} size={0.13} height={0.01} curveSegments={4}>
+          Prison Docs
           <meshStandardMaterial color="#ffd9cf" emissive={WARN} emissiveIntensity={0.9 * glow} />
         </Text3D>
       </group>
