@@ -26,7 +26,7 @@ const BRAND = {
 const APPS = [
   { id: "formstr", name: "Formstr", color: "#ff5c00" },
   { id: "pages", name: "Pages", color: "#10b981" },
-  { id: "pollerama", name: "Pollerama", color: "#f43f5e" },
+  { id: "mailstr", name: "Mailstr", color: "#f59e0b" },
   { id: "drive", name: "Drive", color: "#8b5cf6" },
   { id: "calendar", name: "Calendar", color: "#3b82f6" },
 ];

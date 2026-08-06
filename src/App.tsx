@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import type { CSSProperties } from "react";
 import {
-  BarChart3,
+  Mail,
   FileEdit,
   CalendarDays,
   HardDrive,
@@ -195,12 +195,12 @@ const apps: App[] = [
     y: 332,
   },
   {
-    id: "pollerama",
-    name: "Pollerama",
-    tagline: "Nostr client",
-    color: "#f43f5e",
-    url: "https://pollerama.fun",
-    shot: "/images/previews/pollerama.png",
+    id: "mailstr",
+    name: "Mailstr",
+    tagline: "Email",
+    color: "#f59e0b",
+    url: "https://mailstr.app",
+    shot: "/images/previews/mailstr.png",
     x: 402,
     y: 486,
   },
@@ -239,14 +239,14 @@ type Product = {
 
 const products: Product[] = [
   {
-    name: "Pollerama",
-    tagline: "A Playful Nostr Client",
+    name: "Mailstr",
+    tagline: "Email for your Nostr key",
     description:
-      "Home to NIP-88, the open polling standard we helped author for Nostr. It's since grown into a fun, full-featured client — notes, articles, movies and more — with real-time polls still at its heart.",
-    icon: BarChart3,
-    url: "https://pollerama.fun",
-    color: "#f43f5e",
-    shot: "/images/previews/pollerama.png",
+      "Claim you@mailstr.app and email sent to it arrives as an encrypted message only your key can read — right inside your Nostr client. No password to phish, no account to ban. It's yours, tied to your key.",
+    icon: Mail,
+    url: "https://mailstr.app",
+    color: "#f59e0b",
+    shot: "/images/previews/mailstr.png",
   },
   {
     name: "Formstr Pages",
@@ -596,8 +596,8 @@ const APP_BLURBS: Record<string, string> = {
     "Build forms and surveys that are end-to-end encrypted — responses only you can read, on relays you choose.",
   pages:
     "Write and publish documents you actually own. No platform can lock, mine, or sunset them.",
-  pollerama:
-    "Run polls and watch results in real time, with no middleman deciding what counts.",
+  mailstr:
+    "Email for your Nostr key. Mail to you@mailstr.app arrives as an encrypted message only your key can read — no password, no account to ban.",
   drive:
     "Store and share files privately, encrypted with keys that never leave your control.",
   calendar:
