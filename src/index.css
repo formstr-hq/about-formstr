@@ -22,6 +22,11 @@ body {
   color: #0b0b0c;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent stray horizontal scroll (e.g. the .reveal-left/right entrance
+     transforms briefly extend past the edge on narrow screens). `clip` —
+     unlike `hidden` — doesn't create a scroll container, so it won't break
+     the hero's position: sticky. */
+  overflow-x: clip;
 }
 
 /* graph-paper grid — the Formstr brand sits on graph paper */
@@ -125,12 +130,28 @@ body {
 /* Acts cross-fade via opacity; the sticky wrapper pins the scene.     */
 /* ------------------------------------------------------------------ */
 
-.hero-section {
-  /* The section itself is 300vh; the inner sticky wrapper fills the screen. */
+/* When the 3D scene runs, the section is tall and the inner sticky wrapper
+   pins the scene while you scroll through it. Shorter on phones so each swipe
+   makes clear progress (and the mobile address-bar doesn't eat the whole
+   first scroll). */
+.hero-3d {
+  height: 480vh;
+}
+@media (max-width: 819px) {
+  .hero-3d {
+    height: 300vh;
+  }
 }
 
 .hero-overlays {
   z-index: 10;
+}
+
+/* While the 3D story plays, hide the Act 1 CTAs so the only call to action is
+   "keep scrolling" — the buttons return at the end (Act 3's CTA). They stay
+   visible in the static / no-JS / reduced-motion fallback (no .hero-3d). */
+.hero-3d .hero-a1-cta {
+  display: none;
 }
 
 .hero-act {

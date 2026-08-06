@@ -710,10 +710,7 @@ function Hero() {
   return (
     <section
       ref={heroRef}
-      className={`hero-section relative ${canRender ? "" : "hero-static"}`}
-      // Taller section = slower scroll, so the story plays out instead of
-      // being blown past. ~4.8 screens of scroll for the three acts.
-      style={{ height: canRender ? "480vh" : undefined }}
+      className={`hero-section relative ${canRender ? "hero-3d" : "hero-static"}`}
     >
       <div
         className={`w-full overflow-hidden bg-ink ${
@@ -788,7 +785,7 @@ function Hero() {
                 Security you can actually verify.
               </span>
             </p>
-            <div className="mt-7 flex flex-wrap gap-3 pointer-events-auto">
+            <div className="hero-a1-cta mt-7 flex flex-wrap gap-3 pointer-events-auto">
               <a
                 href="#apps"
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30"
@@ -841,16 +838,18 @@ function Hero() {
           </div>
           </div>
 
-          {/* scroll hint — signals the hero is an interactive scene that
-              plays as you scroll, so it isn't blown past unknowingly */}
+          {/* scroll hint — tells people the hero is a scene that plays as you
+              scroll, so they don't assume the CTA is the only way forward.
+              Top-of-scene on phones (the bottom is full of copy), bottom-centre
+              on desktop. Fades out as Act 1 gives way to the story. */}
           <div
-            className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1.5 lg:flex"
+            className="pointer-events-none absolute left-1/2 top-[4.5rem] flex -translate-x-1/2 flex-col items-center gap-1.5 text-center lg:top-auto lg:bottom-6"
             style={{ opacity: "var(--act1, 0)" } as CSSProperties}
           >
-            <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/45">
-              Scroll slowly — it plays as you go
+            <span className="rounded-full bg-black/40 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 ring-1 ring-white/10 backdrop-blur-sm">
+              Keep scrolling to free your work
             </span>
-            <ChevronDown size={20} className="animate-bounce text-white/35" />
+            <ChevronDown size={20} className="animate-bounce text-white/50" />
           </div>
         </div>
 

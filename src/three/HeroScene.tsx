@@ -223,10 +223,12 @@ function RobotCharacter({
     // with a little playful overshoot/wobble. Absolute (no accumulation).
     if (head.current && p >= 0.6) {
       const ptr = pointerRef.current;
-      // Desktop follows the cursor; mobile has no cursor, so the head does a
-      // gentle autonomous "looking around" sway instead of chasing touch.
-      const ty = IS_MOBILE ? Math.sin(t * 0.7) * 0.28 : ptr.x * 0.5;
-      const tx = IS_MOBILE ? Math.sin(t * 0.9) * 0.1 : -ptr.y * 0.28;
+      // The head turns toward the cursor (desktop) or the last tap (mobile).
+      // On mobile a gentle idle sway keeps it alive before/without a tap.
+      const idleY = IS_MOBILE ? Math.sin(t * 0.6) * 0.12 : 0;
+      const idleX = IS_MOBILE ? Math.sin(t * 0.85) * 0.05 : 0;
+      const ty = ptr.x * 0.5 + idleY;
+      const tx = -ptr.y * 0.28 + idleX;
       headYawV.current = (headYawV.current + (ty - headYaw.current) * 0.14) * 0.78;
       headYaw.current += headYawV.current;
       headPitchV.current =
@@ -1015,8 +1017,14 @@ function PointerTracker({
       pointerRef.current.x = ((e.clientX - r.left) / r.width) * 2 - 1;
       pointerRef.current.y = -((e.clientY - r.top) / r.height) * 2 + 1;
     };
+    // pointermove covers the cursor (desktop) and touch-drag; pointerdown
+    // registers a plain tap so the robot's head turns to where you tapped.
     el.addEventListener("pointermove", onMove, { passive: true });
-    return () => el.removeEventListener("pointermove", onMove);
+    el.addEventListener("pointerdown", onMove, { passive: true });
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerdown", onMove);
+    };
   }, [gl, pointerRef]);
   return null;
 }
