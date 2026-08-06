@@ -22,6 +22,11 @@ body {
   color: #0b0b0c;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent stray horizontal scroll (e.g. the .reveal-left/right entrance
+     transforms briefly extend past the edge on narrow screens). `clip` —
+     unlike `hidden` — doesn't create a scroll container, so it won't break
+     the hero's position: sticky. */
+  overflow-x: clip;
 }
 
 /* graph-paper grid — the Formstr brand sits on graph paper */
@@ -119,6 +124,91 @@ body {
   pointer-events: none;
 }
 
+/* ------------------------------------------------------------------ */
+/* 3D Hero — scroll-driven act overlays                                */
+/* --act1, --act2, --act3 are set by useHeroScroll (useHeroScroll.ts). */
+/* Acts cross-fade via opacity; the sticky wrapper pins the scene.     */
+/* ------------------------------------------------------------------ */
+
+/* When the 3D scene runs, the section is tall and the inner sticky wrapper
+   pins the scene while you scroll through it. Shorter on phones so each swipe
+   makes clear progress (and the mobile address-bar doesn't eat the whole
+   first scroll). */
+.hero-3d {
+  height: 480vh;
+}
+@media (max-width: 819px) {
+  .hero-3d {
+    height: 300vh;
+  }
+}
+
+.hero-overlays {
+  z-index: 10;
+}
+
+/* While the 3D story plays, hide the Act 1 CTAs so the only call to action is
+   "keep scrolling" — the buttons return at the end (Act 3's CTA). They stay
+   visible in the static / no-JS / reduced-motion fallback (no .hero-3d). */
+.hero-3d .hero-a1-cta {
+  display: none;
+}
+
+.hero-act {
+  transition: opacity 0.15s linear;
+  will-change: opacity;
+}
+
+/* Act 1 is the default visible layer (no absolute positioning needed —
+   it sits in normal flow so it's always in the DOM for SEO). */
+.hero-act-1 {
+  /* normal flow — always rendered, opacity controlled by --act1 */
+}
+
+/* Acts 2 & 3 are absolutely positioned over Act 1 */
+.hero-act-2,
+.hero-act-3 {
+  pointer-events: none;
+}
+
+/* Poster fallback — shown when WebGL can't run (SSR, no-JS, reduced-motion, mobile) */
+.hero-poster {
+  z-index: 1;
+}
+
+/* Mobile fallback sits above the poster, below overlays */
+.hero-mobile {
+  z-index: 5;
+}
+
+/* ------------------------------------------------------------------ */
+/* Static hero — no WebGL (SSR, no-JS, reduced-motion, mobile).        */
+/* The scroll hook that sets --act1/2/3 never runs, so force Act 1     */
+/* copy visible, hide Acts 2 & 3, and let the mobile showcase flow.    */
+/* This is also the state the prerendered HTML ships in.               */
+/* ------------------------------------------------------------------ */
+.hero-static .hero-act-1 {
+  opacity: 1 !important;
+  position: static;
+}
+.hero-static .hero-act-2,
+.hero-static .hero-act-3 {
+  display: none;
+}
+/* On the static hero the copy block flows normally (not absolute) so the
+   hero grows to fit both the headline and the mobile showcase. */
+.hero-static .hero-overlays {
+  position: relative;
+}
+.hero-static .hero-overlays > div:first-child {
+  position: relative;
+  padding-top: 4.5rem;
+}
+.hero-static .hero-mobile {
+  position: static;
+  margin-top: 2rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -135,5 +225,13 @@ body {
   }
   .scroll-progress {
     display: none !important;
+  }
+  /* Hero acts: show Act 1 copy, hide the 3D canvas (poster takes over) */
+  .hero-act-1 {
+    opacity: 1 !important;
+  }
+  .hero-act-2,
+  .hero-act-3 {
+    opacity: 0 !important;
   }
 }
