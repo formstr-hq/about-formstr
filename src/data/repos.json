@@ -1,0 +1,75 @@
+{
+  "fetchedAt": "2026-10-24T05:06:22.991Z",
+  "repos": {
+    "nostr-forms": {
+      "stars": 81,
+      "pushedAt": "2026-10-22T04:03:21Z",
+      "license": "MIT"
+    },
+    "nostr-polls": {
+      "stars": 18,
+      "pushedAt": "2026-10-22T18:58:24Z",
+      "license": "MIT"
+    },
+    "nostr-calendar": {
+      "stars": 19,
+      "pushedAt": "2026-10-22T12:30:22Z",
+      "license": "MIT"
+    },
+    "ncache": {
+      "stars": 0,
+      "pushedAt": "2026-10-19T07:43:58Z",
+      "license": "MIT"
+    },
+    "nostr-docs": {
+      "stars": 7,
+      "pushedAt": "2026-10-22T03:51:17Z",
+      "license": null
+    },
+    "formstr-nrpc-server": {
+      "stars": 2,
+      "pushedAt": "2026-02-13T19:37:22Z",
+      "license": null
+    },
+    "formstr-drive": {
+      "stars": 5,
+      "pushedAt": "2026-10-22T19:56:32Z",
+      "license": "MIT"
+    },
+    "nail": {
+      "stars": 1,
+      "pushedAt": "2026-10-21T05:38:51Z",
+      "license": "MIT"
+    },
+    "about-formstr": {
+      "stars": 0,
+      "pushedAt": "2026-08-06T12:23:23Z",
+      "license": null
+    },
+    "common-packages": {
+      "stars": 0,
+      "pushedAt": "2026-10-22T12:18:32Z",
+      "license": null
+    },
+    "nail-ui": {
+      "stars": 0,
+      "pushedAt": "2026-04-19T11:24:26Z",
+      "license": null
+    },
+    "super-app": {
+      "stars": 3,
+      "pushedAt": "2026-10-21T05:24:57Z",
+      "license": null
+    },
+    "nostr-storage-orchestrator": {
+      "stars": 0,
+      "pushedAt": "2026-10-20T05:28:24Z",
+      "license": null
+    },
+    "better-nips": {
+      "stars": 1,
+      "pushedAt": "2026-10-19T09:14:27Z",
+      "license": null
+    }
+  }
+}

@@ -1,0 +1,49 @@
+# Formstr
+
+> Formstr is a suite of open-source work tools built on Nostr, an open protocol: forms (Formstr), calendar, documents (Pages), file storage (Drive) and email (Mailstr). Everything a user creates is a signed Nostr event, encrypted on their device, stored on relays they choose. AI agents use the suite through @formstr/mcp, a Model Context Protocol server with 70+ tools. No API keys, developer accounts or integration approval are needed. An agent can create its own Nostr identity, or act for a user through a remote signer (NIP-46).
+
+To connect an agent, read AGENTS.md first. It's written for agents and is self-contained: setup, sign-in, every tool, the confirmation gate, and worked recipes.
+
+Quick start:
+
+```bash
+npx -y @formstr/mcp login   # sign in once: create a new key, import one, or connect a NIP-46 signer
+```
+
+MCP host configuration (Claude Desktop, Claude Code, Cursor, Goose, …):
+
+```json
+{ "mcpServers": { "formstr": { "command": "npx", "args": ["-y", "@formstr/mcp"] } } }
+```
+
+Creating things is on by default. Editing, deleting, sharing, submitting and sending require the `--allow-writes` flag plus `confirm: true` on the call.
+
+## Connect an agent
+
+- [AGENTS.md](https://raw.githubusercontent.com/formstr-hq/common-packages/main/packages/mcp/AGENTS.md): The agent guide. Sign-in paths, the confirm gate, ids and coordinates, the full tool catalog (forms, calendar, pages, polls, drive, mail, kanban) and recipes.
+- [@formstr/mcp README](https://github.com/formstr-hq/common-packages/tree/main/packages/mcp): Operator setup. Keystore, headless and unattended use, environment variables, local models via Goose and Ollama.
+- [@formstr/mcp on npm](https://www.npmjs.com/package/@formstr/mcp): The package. Run it with `npx -y @formstr/mcp`.
+
+## Apps
+
+- [Formstr](https://formstr.app): Forms and surveys with end-to-end encrypted responses. Event kinds: 30168 (form), 1069 (response).
+- [Calendar](https://calendar.formstr.app): Events, RSVPs, recurring schedules and booking pages. Event kinds: 31923 (event), 32678 (private event).
+- [Pages](https://pages.formstr.app): Encrypted Markdown documents with real-time multi-writer editing. Event kind: 33457.
+- [Drive](https://drive.formstr.app): Files stored on Blossom servers the user chooses, indexed on Nostr. Event kind: 34578 (file metadata).
+- [Mailstr](https://mailstr.app): An email address for a Nostr key. Mail arrives as kind 1301 inside a NIP-59 gift wrap.
+
+## Source
+
+- [nostr-forms](https://github.com/formstr-hq/nostr-forms): Formstr.
+- [nostr-calendar](https://github.com/formstr-hq/nostr-calendar): Calendar.
+- [nostr-docs](https://github.com/formstr-hq/nostr-docs): Pages.
+- [formstr-drive](https://github.com/formstr-hq/formstr-drive): Drive.
+- [nail](https://github.com/formstr-hq/nail): Mailstr, the email ⇄ Nostr bridge.
+- [common-packages](https://github.com/formstr-hq/common-packages): @formstr/mcp and the shared SDKs.
+
+## Optional
+
+- [About Formstr](https://about.formstr.app/): This site: the suite, the agent model, security and source.
+- [Privacy policy](https://about.formstr.app/privacy-policy): No analytics, no advertising. What is and isn't stored.
+- [Nostr](https://nostr.org): The protocol.
+- Contact: hello@formstr.app

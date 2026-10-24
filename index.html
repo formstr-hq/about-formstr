@@ -4,27 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Flag JS as available before first paint, so scroll-reveal styles only
-         hide content when JS can animate it back in. No-JS users and crawlers
-         keep everything visible, and there's no reveal flash on load. -->
-    <script>
-      document.documentElement.classList.add("js");
-    </script>
-
     <!-- IMPORTANT: set this to the real deployed origin (canonical, OG & sitemap) -->
     <link rel="canonical" href="https://about.formstr.app/" />
 
-    <title>Formstr — Free your tools. Decentralized, private apps on Nostr.</title>
+    <title>Formstr — Work tools for people and their agents</title>
     <meta
       name="description"
-      content="Forms, docs, calendars and file storage your business actually owns. Encrypted with keys only you hold, on relays you pick — privacy and security you can verify. Open-source, built on Nostr. Free it, don't cage it."
+      content="Forms, documents, calendars, files and email on Nostr, an open protocol. Your work is signed with your key and encrypted on your device, and the people and AI agents you trust can work with it directly: no API keys to provision, no integrations to maintain."
     />
-    <meta name="theme-color" content="#ff5c00" />
+    <meta name="theme-color" content="#f4f4f3" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="author" content="Formstr" />
     <meta
       name="keywords"
-      content="Formstr, Nostr, decentralized forms, encrypted forms, decentralized productivity, Mailstr, Nostr email, decentralized docs, decentralized calendar, decentralized file storage, privacy, self-hosted, open source"
+      content="Formstr, Nostr, AI agents, MCP, Model Context Protocol, @formstr/mcp, encrypted forms, decentralized calendar, encrypted documents, Blossom file storage, Mailstr, Nostr email, open source, self-hosted"
     />
 
     <!-- icons -->
@@ -35,32 +28,26 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Formstr" />
     <meta property="og:url" content="https://about.formstr.app/" />
-    <meta
-      property="og:title"
-      content="Formstr — Free your tools. Decentralized, private apps on Nostr."
-    />
+    <meta property="og:title" content="Formstr — Work tools for people and their agents" />
     <meta
       property="og:description"
-      content="Forms, docs, calendars and file storage your business actually owns. Encrypted with keys only you hold — privacy and security you can verify. Free it, don't cage it."
+      content="Forms, documents, calendars, files and email on Nostr. Encrypted with your key, readable by the people and agents you trust. No API keys, no integrations."
     />
     <meta property="og:image" content="https://about.formstr.app/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="Formstr — your life's work shouldn't have a jailer. Decentralized, private productivity tools on Nostr."
+      content="Formstr: one form, two readers. A form as a person sees it, beside the signed Nostr event an AI agent reads."
     />
     <meta property="og:locale" content="en_US" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta
-      name="twitter:title"
-      content="Formstr — Free your tools. Decentralized, private apps on Nostr."
-    />
+    <meta name="twitter:title" content="Formstr — Work tools for people and their agents" />
     <meta
       name="twitter:description"
-      content="Forms, docs, calendars and file storage your business actually owns. Privacy and security you can verify. Free it, don't cage it."
+      content="Forms, documents, calendars, files and email on Nostr. Encrypted with your key, readable by the people and agents you trust."
     />
     <meta name="twitter:image" content="https://about.formstr.app/og-image.png" />
 
@@ -68,7 +55,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
@@ -83,7 +70,8 @@
             "name": "Formstr",
             "url": "https://about.formstr.app/",
             "logo": "https://about.formstr.app/images/formstr/logo-192.png",
-            "description": "Decentralized, privacy-first productivity tools built on the Nostr protocol.",
+            "email": "hello@formstr.app",
+            "description": "Open-source work tools on Nostr, built for people and their AI agents.",
             "sameAs": ["https://github.com/formstr-hq", "https://formstr.app"]
           },
           {
@@ -103,25 +91,7 @@
                 "applicationCategory": "BusinessApplication",
                 "operatingSystem": "Web",
                 "url": "https://formstr.app",
-                "description": "Decentralized, end-to-end encrypted forms and surveys on Nostr with full data ownership.",
-                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-              },
-              {
-                "@type": "SoftwareApplication",
-                "name": "Mailstr",
-                "applicationCategory": "CommunicationApplication",
-                "operatingSystem": "Web",
-                "url": "https://mailstr.app",
-                "description": "Email for your Nostr key — mail to you@mailstr.app arrives as an encrypted message only your key can read.",
-                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-              },
-              {
-                "@type": "SoftwareApplication",
-                "name": "Formstr Pages",
-                "applicationCategory": "BusinessApplication",
-                "operatingSystem": "Web",
-                "url": "https://pages.formstr.app",
-                "description": "Private, Notion-style notes and documents on Nostr, encrypted and yours.",
+                "description": "Forms and surveys on Nostr with end-to-end encrypted responses.",
                 "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
               },
               {
@@ -130,7 +100,16 @@
                 "applicationCategory": "BusinessApplication",
                 "operatingSystem": "Web",
                 "url": "https://calendar.formstr.app",
-                "description": "Decentralized calendar, events and RSVPs on Nostr with end-to-end encryption.",
+                "description": "Events, RSVPs, recurring schedules and booking pages on Nostr, with encrypted private events.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Formstr Pages",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web",
+                "url": "https://pages.formstr.app",
+                "description": "Encrypted Markdown documents with real-time collaboration on Nostr.",
                 "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
               },
               {
@@ -139,7 +118,25 @@
                 "applicationCategory": "BusinessApplication",
                 "operatingSystem": "Web",
                 "url": "https://drive.formstr.app",
-                "description": "Decentralized file storage indexed on Nostr and stored on Blossom servers you choose.",
+                "description": "File storage indexed on Nostr and stored on Blossom servers you choose.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Mailstr",
+                "applicationCategory": "CommunicationApplication",
+                "operatingSystem": "Web",
+                "url": "https://mailstr.app",
+                "description": "An email address for your Nostr key; mail arrives encrypted to your key.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "@formstr/mcp",
+                "applicationCategory": "DeveloperApplication",
+                "operatingSystem": "macOS, Windows, Linux",
+                "url": "https://www.npmjs.com/package/@formstr/mcp",
+                "description": "A Model Context Protocol server that lets AI agents work across the Formstr suite.",
                 "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
               }
             ]
@@ -151,21 +148,20 @@
   <body>
     <div id="root"></div>
     <noscript>
-      <h1>Formstr — free your tools. Decentralized, private apps on Nostr.</h1>
+      <h1>Formstr — work tools for people and their agents.</h1>
       <p>
-        Forms, docs, calendars and file storage your business actually owns.
-        Encrypted with keys only you hold, on relays you pick — privacy and
-        security you can verify. Open-source, built on Nostr. Free it, don't
-        cage it.
+        Forms, documents, calendars, files and email on Nostr, an open protocol. Your work is signed with your key
+        and encrypted on your device, and the people and AI agents you trust can work with it directly.
       </p>
       <ul>
-        <li><a href="https://formstr.app">Formstr — decentralized forms</a></li>
+        <li><a href="https://formstr.app">Formstr — encrypted forms and surveys</a></li>
+        <li><a href="https://calendar.formstr.app">Calendar — events and booking pages</a></li>
+        <li><a href="https://pages.formstr.app">Pages — encrypted documents</a></li>
+        <li><a href="https://drive.formstr.app">Drive — files on Blossom</a></li>
         <li><a href="https://mailstr.app">Mailstr — email for your Nostr key</a></li>
-        <li><a href="https://pages.formstr.app">Formstr Pages — private docs &amp; notes</a></li>
-        <li><a href="https://calendar.formstr.app">Formstr Calendar — decentralized calendar</a></li>
-        <li><a href="https://drive.formstr.app">Formstr Drive — decentralized file storage</a></li>
+        <li><a href="https://www.npmjs.com/package/@formstr/mcp">@formstr/mcp — connect an AI agent</a></li>
       </ul>
-      <p><a href="https://github.com/formstr-hq">Formstr on GitHub</a> — every repo is MIT licensed.</p>
+      <p><a href="https://github.com/formstr-hq">Formstr on GitHub</a></p>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

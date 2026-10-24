@@ -1,0 +1,565 @@
+<!doctype html>
+<!-- Formstr about page — design proposal.
+     Concept: a spec sheet for the suite. Real artifacts only (actual event kinds,
+     actual event structure, actual repos), set like a technical document.
+     Serve the repo root (`python3 -m http.server 4174`) and open /design/about.html.
+     Not part of the build. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Formstr — work tools that don't need our permission</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script type="importmap">
+{ "imports": {
+  "three": "/node_modules/three/build/three.module.js",
+  "three/addons/": "/node_modules/three/examples/jsm/"
+} }
+</script>
+<style>
+  :root {
+    --paper: #f4f4f3; --sheet: #fbfbfa; --white: #fff;
+    --ink: #0b0b0c; --ink-2: #3b3b39; --mute: #6c6c69; --faint: #a3a3a0;
+    --line: #dededb; --line-2: #e9e9e6;
+    --forms: #f76b15; --cal: #3b82f6; --pages: #10b981; --drive: #8b5cf6; --mail: #e5484d;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body { margin: 0; font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  p { margin: 0; }
+  h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -.022em; }
+
+  /* the sheet: a centred page with hairline margins, like a printed spec */
+  .sheet { max-width: 1280px; margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); background: var(--paper); }
+  .row { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 24px; padding: 0 48px; }
+  .rule { border-top: 1px solid var(--line); }
+  .mono { font-family: var(--mono); }
+  .cap { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+
+  /* masthead */
+  header { position: sticky; top: 0; z-index: 20; background: rgba(244,244,243,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  header .row { height: 60px; align-items: center; }
+  header nav { grid-column: 4 / 10; display: flex; gap: 32px; font-size: 14px; color: var(--ink-2); }
+  header nav a { text-decoration: none; }
+  header nav a span { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-right: 6px; }
+  header .end { grid-column: 10 / 13; justify-self: end; display: flex; gap: 20px; align-items: center; font-size: 14px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; height: 42px; padding: 0 18px; border-radius: 4px; font-size: 14.5px; font-weight: 500; text-decoration: none; }
+  .btn-ink { background: var(--ink); color: #fff; }
+  .btn-line { border: 1px solid var(--ink); }
+  header .btn { height: 34px; padding: 0 14px; font-size: 13.5px; }
+
+  /* hero */
+  .hero { padding-top: 96px; padding-bottom: 64px; }
+  .kicker { grid-column: 1 / 13; display: flex; justify-content: space-between; margin-bottom: 40px; }
+  .hero h1 { grid-column: 1 / 11; font-size: 88px; line-height: .98; letter-spacing: -.04em; font-weight: 600; }
+  .hero .sub { grid-column: 1 / 7; margin-top: 36px; font-size: 19px; line-height: 1.55; color: var(--ink-2); }
+  .hero .actions { grid-column: 8 / 13; align-self: end; display: flex; flex-direction: column; gap: 12px; }
+  .cmd { display: flex; align-items: center; justify-content: space-between; height: 42px; padding: 0 14px; border: 1px solid var(--line); background: var(--white); border-radius: 4px; font-family: var(--mono); font-size: 13.5px; }
+  .cmd span { color: var(--faint); }
+  .cmd em { font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+
+  /* figures */
+  figure { margin: 0; }
+  figcaption { display: flex; gap: 16px; padding: 14px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--mute); }
+  figcaption b { font-family: var(--mono); font-weight: 500; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); white-space: nowrap; padding-top: 2px; }
+
+  /* Fig 1 — one form, two readers */
+  .fig1 { grid-column: 1 / 13; margin-top: 72px; }
+  .fig1 .frame { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); background: var(--sheet); }
+  .fig1 .side { padding: 28px 32px 32px; position: relative; }
+  .fig1 .side + .side { border-left: 1px solid var(--line); background: var(--ink); color: #e9e9e6; }
+  .fig1 .who { display: flex; justify-content: space-between; margin-bottom: 22px; }
+  .fig1 .side + .side .cap { color: #8d8d89; }
+  .form { background: var(--white); border: 1px solid var(--line-2); border-top: 4px solid var(--forms); border-radius: 6px; padding: 26px 28px; box-shadow: 0 1px 0 rgba(0,0,0,.03); }
+  .form h4 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  .form .desc { margin-top: 6px; font-size: 13.5px; color: var(--mute); }
+  .q { margin-top: 22px; position: relative; }
+  .q label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+  .q label i { font-style: normal; color: var(--mail); }
+  .inp { height: 38px; border: 1px solid var(--line); border-radius: 4px; padding: 0 12px; display: flex; align-items: center; font-size: 13.5px; color: var(--ink-2); }
+  .opts { display: flex; gap: 8px; }
+  .opt { flex: 1; height: 38px; border: 1px solid var(--line); border-radius: 4px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13.5px; }
+  .opt::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--faint); }
+  .opt.on { border-color: var(--forms); background: #fff6f0; }
+  .opt.on::before { border: 4px solid var(--forms); width: 6px; height: 6px; }
+  .area { height: 70px; border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; font-size: 13.5px; color: var(--ink-2); }
+  .form .foot { margin-top: 22px; display: flex; justify-content: space-between; align-items: center; }
+  .form .foot .lock { font-size: 12px; color: var(--mute); display: flex; gap: 6px; align-items: center; }
+  .form .submit { background: var(--ink); color: #fff; font-size: 13.5px; font-weight: 500; padding: 9px 16px; border-radius: 4px; }
+  .n { position: absolute; left: -22px; top: 1px; width: 16px; height: 16px; border-radius: 50%; background: var(--forms); color: #fff; font-family: var(--mono); font-size: 10px; display: grid; place-items: center; }
+  pre.ev { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.72; color: #c9c9c5; white-space: pre; overflow: hidden; }
+  pre.ev .k { color: #8d8d89; } pre.ev .s { color: #f1f1ee; } pre.ev .num { color: #ffb38a; }
+  pre.ev .hl { background: rgba(247,107,21,.16); box-shadow: inset 2px 0 0 var(--forms); }
+  pre.ev .n2 { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--forms); color: #fff; font-size: 10px; margin-left: 8px; vertical-align: 1px; }
+  .fig1 .mid { position: absolute; left: -15px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border-radius: 50%; background: var(--paper); border: 1px solid var(--line); display: grid; place-items: center; font-family: var(--mono); font-size: 13px; z-index: 2; color: var(--ink); }
+
+  /* section heads */
+  section { padding: 0; }
+  section > .sheet { padding: 120px 0; }
+  .sh { align-items: start; margin-bottom: 72px; }
+  .sh .no { grid-column: 1 / 4; padding-top: 12px; }
+  .sh h2 { grid-column: 4 / 11; font-size: 52px; line-height: 1.04; letter-spacing: -.032em; }
+  .sh .lede { grid-column: 4 / 10; margin-top: 24px; font-size: 18px; line-height: 1.6; color: var(--ink-2); }
+
+  /* catalog */
+  .entry { padding-top: 40px; padding-bottom: 72px; align-items: start; }
+  .entry + .entry { border-top: 1px solid var(--line); }
+  .meta { grid-column: 1 / 4; position: sticky; top: 100px; }
+  .kind { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); display: flex; align-items: center; gap: 8px; }
+  .kind i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+  .kind-n { font-family: var(--mono); font-size: 15px; color: var(--c); margin-top: 6px; }
+  .meta h3 { font-size: 34px; letter-spacing: -.028em; margin-top: 28px; }
+  .meta p { margin-top: 12px; font-size: 15.5px; line-height: 1.6; color: var(--ink-2); }
+  .meta dl { margin: 22px 0 0; font-size: 13px; }
+  .meta dl div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .meta dt { color: var(--mute); }
+  .meta dd { margin: 0; font-family: var(--mono); font-size: 12.5px; text-align: right; }
+  .meta .go { display: inline-block; margin-top: 20px; font-size: 14px; font-weight: 500; text-decoration: none; border-bottom: 1px solid var(--ink); padding-bottom: 2px; }
+  .plate { grid-column: 4 / 13; }
+  .plate .art { border: 1px solid var(--line); background: var(--sheet); padding: 40px; overflow: hidden; }
+  .win { background: var(--white); border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 20px 40px -24px rgba(0,0,0,.18); }
+  .win .bar { height: 34px; border-bottom: 1px solid var(--line-2); display: flex; align-items: center; gap: 6px; padding: 0 12px; }
+  .win .bar i { width: 9px; height: 9px; border-radius: 50%; background: #e4e4e1; }
+  .win .bar span { margin-left: 10px; font-family: var(--mono); font-size: 11.5px; color: var(--mute); }
+  .win img { display: block; width: 100%; }
+
+  /* vignette: form responses */
+  .resp { display: grid; grid-template-columns: 1.1fr 1fr; }
+  .resp > div { padding: 24px 26px; }
+  .resp > div + div { border-left: 1px solid var(--line-2); }
+  .resp h5 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+  .bars { margin-top: 20px; display: grid; gap: 12px; font-size: 13px; }
+  .bars div { display: grid; grid-template-columns: 90px 1fr 26px; gap: 10px; align-items: center; }
+  .bars b { height: 10px; background: var(--forms); border-radius: 2px; }
+  .bars span:last-child { font-family: var(--mono); font-size: 12px; color: var(--mute); text-align: right; }
+  .rlist { font-size: 13px; }
+  .rlist div { display: grid; grid-template-columns: 1fr auto; padding: 10px 0; border-top: 1px solid var(--line-2); }
+  .rlist div:first-child { border-top: 0; }
+  .rlist small { font-family: var(--mono); font-size: 11.5px; color: var(--mute); }
+  .rlist em { font-style: normal; color: var(--ink-2); display: block; margin-top: 3px; }
+
+  /* vignette: doc with live cursors */
+  .doc { padding: 36px 56px 44px; font-size: 15px; line-height: 1.7; color: var(--ink-2); }
+  .doc .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 26px; }
+  .avs { display: flex; }
+  .avs span { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; margin-left: -6px; display: grid; place-items: center; font-family: var(--mono); font-size: 10px; font-weight: 600; color: #fff; }
+  .doc h4 { margin: 0 0 14px; font-size: 28px; font-weight: 600; color: var(--ink); letter-spacing: -.02em; }
+  .doc h6 { margin: 22px 0 6px; font-size: 13px; font-family: var(--mono); font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--mute); }
+  .doc ul { margin: 0; padding-left: 18px; }
+  .caret { position: relative; display: inline-block; width: 2px; height: 1.15em; vertical-align: -3px; background: var(--c); }
+  .caret b { position: absolute; bottom: 100%; left: -1px; background: var(--c); color: #fff; font-family: var(--mono); font-size: 10px; font-weight: 500; padding: 1px 5px; border-radius: 2px 2px 2px 0; white-space: nowrap; }
+  .sel { background: color-mix(in srgb, var(--c) 18%, transparent); }
+
+  /* vignette: drive */
+  .drive .crumbs { padding: 16px 22px; font-size: 13.5px; color: var(--mute); border-bottom: 1px solid var(--line-2); display: flex; justify-content: space-between; }
+  .drive .crumbs b { color: var(--ink); font-weight: 600; }
+  .drive table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .drive th { text-align: left; font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); padding: 10px 22px; border-bottom: 1px solid var(--line-2); }
+  .drive td { padding: 12px 22px; border-bottom: 1px solid var(--line-2); }
+  .drive td.m { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
+  .ficon { display: inline-block; width: 22px; height: 26px; border-radius: 3px; margin-right: 12px; vertical-align: middle; background: var(--c); position: relative; }
+  .ficon::after { content: attr(data-x); position: absolute; bottom: 3px; left: 0; right: 0; text-align: center; font-family: var(--mono); font-size: 7px; color: #fff; font-weight: 600; }
+
+  /* agents — dark sheet */
+  .dark { background: var(--ink); color: #ecece9; }
+  .dark .sheet { background: var(--ink); border-color: #232323; }
+  .dark .cap, .dark .no { color: #8d8d89; }
+  .dark .sh .lede { color: #b9b9b5; }
+  .dark figcaption { color: #8d8d89; }
+  .dark figcaption b { color: #ecece9; }
+  .agent-body { align-items: start; }
+  .agent-body .copy { grid-column: 4 / 10; font-size: 17px; line-height: 1.65; color: #b9b9b5; display: grid; gap: 18px; margin-top: -40px; }
+  .agent-figs { margin-top: 72px; align-items: stretch; }
+  .fig-robot { grid-column: 1 / 6; }
+  .fig-robot .stage { position: relative; height: 520px; border: 1px solid #262626; background:
+      radial-gradient(ellipse at 50% 85%, #1d1d1c 0, transparent 60%),
+      linear-gradient(to right, rgba(255,255,255,.035) 1px, transparent 1px) 0 0/40px 40px,
+      linear-gradient(to bottom, rgba(255,255,255,.035) 1px, transparent 1px) 0 0/40px 40px, #0f0f10; }
+  #agent-canvas { position: absolute; inset: 0; }
+  #agent-canvas canvas { display: block; }
+  .stage .tagline { position: absolute; left: 16px; bottom: 14px; z-index: 2; }
+  .stage .tagline.r { left: auto; right: 16px; }
+  .fig-term { grid-column: 6 / 13; display: flex; flex-direction: column; }
+  .term { flex: 1; border: 1px solid #262626; background: #111112; font-family: var(--mono); font-size: 13.5px; line-height: 1.75; color: #c9c9c5; display: flex; flex-direction: column; }
+  .term .bar { height: 38px; border-bottom: 1px solid #262626; display: flex; align-items: center; padding: 0 16px; gap: 18px; font-size: 11.5px; color: #8d8d89; }
+  .term .bar .on { color: #ecece9; }
+  .term .body { padding: 22px 24px; flex: 1; }
+  .term .p { color: #6d6d6a; }
+  .term .you { color: #f1f1ee; }
+  .term .tool { display: grid; grid-template-columns: 210px 1fr auto; gap: 14px; }
+  .term .tool .t { color: var(--c); }
+  .term .ok { color: #57c785; } .term .wait { color: #e8b04b; }
+  .term .sep { border-top: 1px dashed #2a2a2a; margin: 16px 0; }
+  .specs { margin-top: 56px; }
+  .spec { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 24px; grid-column: 1 / 13; border-top: 1px solid #262626; }
+  .spec > div { padding: 22px 0 0; }
+  .spec h4 { margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #f1f1ee; }
+  .spec p { font-size: 14px; line-height: 1.6; color: #a3a3a0; }
+  .spec code { font-family: var(--mono); font-size: 12.5px; color: #ecece9; }
+
+  /* security */
+  .sec-grid { align-items: start; }
+  .sec-table { grid-column: 1 / 7; border-top: 1px solid var(--ink); }
+  .sec-table div { display: grid; grid-template-columns: 150px 1fr; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--line); font-size: 15px; line-height: 1.55; }
+  .sec-table dt { font-family: var(--mono); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--mute); padding-top: 3px; }
+  .sec-table dd { margin: 0; color: var(--ink-2); }
+  .sec-table dd code { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+  .fig-sec { grid-column: 8 / 13; }
+  .cipher { border: 1px solid var(--line); background: var(--sheet); }
+  .cipher > div { padding: 20px 22px; }
+  .cipher > div + div { border-top: 1px dashed var(--line); }
+  .cipher pre { margin: 10px 0 0; font-family: var(--mono); font-size: 12px; line-height: 1.65; color: var(--faint); white-space: pre-wrap; word-break: break-all; }
+  .cipher .clear { background: var(--white); }
+  .cipher .ans { margin-top: 12px; display: grid; gap: 10px; font-size: 13.5px; }
+  .cipher .ans span { display: block; font-size: 12px; color: var(--mute); }
+
+  /* source */
+  .repos { grid-column: 1 / 13; border-top: 1px solid var(--ink); }
+  .repos > * { display: grid; grid-template-columns: 2.2fr 3fr 1fr 1.2fr 24px; gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--line); align-items: baseline; font-size: 15px; text-decoration: none; }
+  .repos .h { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); padding: 12px 0; }
+  .repos .name { font-family: var(--mono); font-size: 14.5px; }
+  .repos .what { color: var(--ink-2); }
+  .repos .num { font-family: var(--mono); font-size: 13px; color: var(--mute); }
+  .repos .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--c, var(--ink)); margin-right: 10px; }
+
+  /* close */
+  .close > .sheet { padding: 140px 0 0; }
+  .close h2 { grid-column: 1 / 10; font-size: 72px; line-height: 1; letter-spacing: -.04em; }
+  .close .end { grid-column: 1 / 13; display: flex; justify-content: space-between; align-items: end; margin-top: 48px; padding-bottom: 96px; }
+  .close .end p { max-width: 520px; font-size: 18px; line-height: 1.6; color: var(--ink-2); }
+  .close .end .btns { display: flex; gap: 12px; }
+  footer .row { height: 72px; align-items: center; font-size: 13px; color: var(--mute); }
+  footer .l { grid-column: 1 / 7; display: flex; gap: 14px; align-items: center; }
+  footer .r { grid-column: 7 / 13; justify-self: end; display: flex; gap: 24px; }
+  footer a { text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="sheet">
+    <div class="row">
+      <a href="#" style="grid-column:1/4"><img src="/public/images/formstr/formstr-logo.svg" height="28" alt="Formstr" style="display:block" /></a>
+      <nav><a href="#suite"><span>01</span>Suite</a><a href="#agents"><span>02</span>Agents</a><a href="#security"><span>03</span>Security</a><a href="#source"><span>04</span>Source</a></nav>
+      <div class="end"><a href="#" style="text-decoration:none;color:var(--mute)">GitHub</a><a class="btn btn-ink" href="#">Open the apps</a></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ============ HERO ============ -->
+<div class="sheet">
+  <div class="row hero">
+    <div class="kicker"><span class="cap">Formstr · open-source work tools on Nostr</span><span class="cap">Forms · Calendar · Pages · Drive · Mailstr</span></div>
+    <h1>Work tools that don't need our permission.</h1>
+    <p class="sub">Forms, documents, calendars, files and email, built on Nostr, an open protocol. What you make is signed with your key and encrypted on your device. Any app or AI agent you trust can work with it directly. There's no API to apply for and no integration to wait on.</p>
+    <div class="actions">
+      <a class="btn btn-ink" href="#suite" style="justify-content:space-between">Explore the suite <span>↓</span></a>
+      <div class="cmd"><div><span>$ </span>npx -y @formstr/mcp</div><em>Connect an agent</em></div>
+    </div>
+
+    <figure class="fig1">
+      <div class="frame">
+        <div class="side">
+          <div class="who"><span class="cap">What a person sees</span><span class="cap">formstr.app/f/site-visit</span></div>
+          <div class="form">
+            <h4>Site visit feedback</h4>
+            <p class="desc">Two minutes. Answers are encrypted to the facilities team.</p>
+            <div class="q"><span class="n">1</span><label>Your name <i>*</i></label><div class="inp">Dana Okafor</div></div>
+            <div class="q"><span class="n">2</span><label>How was the visit?</label><div class="opts"><div class="opt on">Smooth</div><div class="opt">Mixed</div><div class="opt">Rough</div></div></div>
+            <div class="q"><span class="n">3</span><label>What should we change?</label><div class="area">Badge pickup took twenty minutes. Could the passes be ready the day before?</div></div>
+            <div class="foot"><span class="lock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Response encrypted before sending</span><span class="submit">Submit</span></div>
+          </div>
+        </div>
+        <div class="side">
+          <span class="mid">=</span>
+          <div class="who"><span class="cap">What an agent reads</span><span class="cap">kind 30168 · signed</span></div>
+<pre class="ev">{
+  <span class="k">"kind"</span>: <span class="num">30168</span>,
+  <span class="k">"pubkey"</span>: <span class="s">"3bf0c63fcb93463407af97a5e5ee64fa…"</span>,
+  <span class="k">"created_at"</span>: <span class="num">1761292800</span>,
+  <span class="k">"tags"</span>: [
+    [<span class="s">"d"</span>, <span class="s">"site-visit"</span>],
+    [<span class="s">"name"</span>, <span class="s">"Site visit feedback"</span>],
+<span class="hl">    [<span class="s">"field"</span>, <span class="s">"q1"</span>, <span class="s">"text"</span>, <span class="s">"Your name"</span>, …]</span><span class="n2">1</span>
+<span class="hl">    [<span class="s">"field"</span>, <span class="s">"q2"</span>, <span class="s">"option"</span>, <span class="s">"How was the visit?"</span>, …]</span><span class="n2">2</span>
+<span class="hl">    [<span class="s">"field"</span>, <span class="s">"q3"</span>, <span class="s">"text"</span>, <span class="s">"What should we change?"</span>, …]</span><span class="n2">3</span>
+  ],
+  <span class="k">"sig"</span>: <span class="s">"a91c4e…07e2"</span>
+}</pre>
+        </div>
+      </div>
+      <figcaption><b>Fig. 1</b><span>One form, two readers. People get a form. Software gets the signed event it's made of, in a public format any Nostr client can parse. No Formstr API sits in between.</span></figcaption>
+    </figure>
+  </div>
+</div>
+
+<!-- ============ 01 SUITE ============ -->
+<section id="suite" class="rule">
+  <div class="sheet">
+    <div class="row sh">
+      <span class="no cap">01 — The suite</span>
+      <h2>Five apps. One key. Everything in an open format.</h2>
+      <p class="lede">Each app stands on its own. They share an identity and a data format, so they also work together, and with anything else that speaks Nostr. Each is listed below with the event kind it stores your work as.</p>
+    </div>
+
+    <!-- Forms -->
+    <div class="row entry" style="--c:var(--forms)">
+      <div class="meta">
+        <div class="kind"><i></i>Forms</div>
+        <div class="kind-n">kind 30168 · 1069</div>
+        <h3>Formstr</h3>
+        <p>Surveys and forms with end-to-end encrypted responses, anonymous submissions and AI-assisted building. Only you and the people you add can read the answers.</p>
+        <dl><div><dt>Address</dt><dd>formstr.app</dd></div><div><dt>Responses</dt><dd>NIP-44 encrypted</dd></div><div><dt>Source</dt><dd>nostr-forms · MIT</dd></div></dl>
+        <a class="go" href="#">Open Formstr ↗</a>
+      </div>
+      <figure class="plate">
+        <div class="art">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>formstr.app / site-visit / responses</span></div>
+            <div class="resp">
+              <div>
+                <h5>How was the visit?</h5><span class="cap">24 responses</span>
+                <div class="bars">
+                  <div><span>Smooth</span><b style="width:100%"></b><span>15</span></div>
+                  <div><span>Mixed</span><b style="width:44%"></b><span>7</span></div>
+                  <div><span>Rough</span><b style="width:14%"></b><span>2</span></div>
+                </div>
+              </div>
+              <div class="rlist">
+                <div><span>Dana Okafor<em>Badge pickup took twenty minutes…</em></span><small>09:41</small></div>
+                <div><span>Anonymous<em>Great hosts. Parking was confusing.</em></span><small>09:12</small></div>
+                <div><span>npub1qe3…7xk2<em>Lunch was excellent, thank you.</em></span><small>08:57</small></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <!-- Calendar -->
+    <div class="row entry" style="--c:var(--cal)">
+      <div class="meta">
+        <div class="kind"><i></i>Calendar</div>
+        <div class="kind-n">kind 31923 · 32678 private</div>
+        <h3>Calendar</h3>
+        <p>Events, RSVPs, recurring schedules and booking pages. Private events are encrypted; public ones can be shared with anyone on Nostr.</p>
+        <dl><div><dt>Address</dt><dd>calendar.formstr.app</dd></div><div><dt>Sign-in</dt><dd>extension · NIP-46</dd></div><div><dt>Source</dt><dd>nostr-calendar · MIT</dd></div></dl>
+        <a class="go" href="#">Open Calendar ↗</a>
+      </div>
+      <figure class="plate">
+        <div class="art" style="padding:40px 0 0 40px"><div class="win" style="border-radius:8px 0 0 0;border-right:0;border-bottom:0"><div class="bar"><i></i><i></i><i></i><span>calendar.formstr.app</span></div><img src="./assets/calendar.png" alt="Formstr Calendar month view" /></div></div>
+      </figure>
+    </div>
+
+    <!-- Pages -->
+    <div class="row entry" style="--c:var(--pages)">
+      <div class="meta">
+        <div class="kind"><i></i>Documents</div>
+        <div class="kind-n">kind 33457</div>
+        <h3>Pages</h3>
+        <p>Documents and notes in Markdown, encrypted by default, with live editing for everyone you share with, people and agents alike.</p>
+        <dl><div><dt>Address</dt><dd>pages.formstr.app</dd></div><div><dt>Collaboration</dt><dd>real-time · multi-writer</dd></div><div><dt>Source</dt><dd>nostr-docs</dd></div></dl>
+        <a class="go" href="#">Open Pages ↗</a>
+      </div>
+      <figure class="plate">
+        <div class="art">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>pages.formstr.app / q4-supplier-review</span></div>
+            <div class="doc">
+              <div class="top"><span class="cap">Encrypted · shared with 2</span><div class="avs"><span style="background:#10b981">PS</span><span style="background:#0b0b0c">AI</span><span style="background:#3b82f6">DO</span></div></div>
+              <h4>Q4 supplier review</h4>
+              <p>Three of our five suppliers met every delivery window this quarter. Two slipped by more than a week, both during the port strike in November.</p>
+              <h6>Actions</h6>
+              <ul>
+                <li>Renew the Halden contract on current terms <span class="caret" style="--c:#10b981"><b>Priya</b></span></li>
+                <li><span class="sel" style="--c:#0b0b0c">Ask Norvik for a revised lead-time commitment</span> <span class="caret" style="--c:#0b0b0c"><b>Agent · drafting</b></span></li>
+                <li>Send the site-visit feedback summary to facilities</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <!-- Drive -->
+    <div class="row entry" style="--c:var(--drive)">
+      <div class="meta">
+        <div class="kind"><i></i>Files</div>
+        <div class="kind-n">kind 34578</div>
+        <h3>Drive</h3>
+        <p>File storage where Nostr keeps the index and Blossom servers you choose keep the bytes. Use a public server, or run one inside your own network.</p>
+        <dl><div><dt>Address</dt><dd>drive.formstr.app</dd></div><div><dt>Storage</dt><dd>Blossom · your choice</dd></div><div><dt>Source</dt><dd>formstr-drive · MIT</dd></div></dl>
+        <a class="go" href="#">Open Drive ↗</a>
+      </div>
+      <figure class="plate">
+        <div class="art">
+          <div class="win drive">
+            <div class="bar"><i></i><i></i><i></i><span>drive.formstr.app</span></div>
+            <div class="crumbs"><span>My Drive / <b>Operations</b></span><span class="mono" style="font-size:12px">4 items · 61.2 MB</span></div>
+            <table>
+              <tr><th>Name</th><th>Size</th><th>Stored on</th><th>Modified</th></tr>
+              <tr><td><span class="ficon" style="--c:#e5484d" data-x="PDF"></span>Halden-contract-2027.pdf</td><td class="m">1.8 MB</td><td class="m">blossom.yourco.internal</td><td class="m">Oct 21</td></tr>
+              <tr><td><span class="ficon" style="--c:#10b981" data-x="XLS"></span>q4-deliveries.xlsx</td><td class="m">412 KB</td><td class="m">blossom.yourco.internal</td><td class="m">Oct 20</td></tr>
+              <tr><td><span class="ficon" style="--c:#8b5cf6" data-x="ZIP"></span>site-visit-photos.zip</td><td class="m">58.6 MB</td><td class="m">nostr.download</td><td class="m">Oct 18</td></tr>
+              <tr><td><span class="ficon" style="--c:#3b82f6" data-x="DOC"></span>badge-process.md</td><td class="m">4 KB</td><td class="m">blossom.yourco.internal</td><td class="m">Oct 17</td></tr>
+            </table>
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <!-- Mailstr -->
+    <div class="row entry" style="--c:var(--mail)">
+      <div class="meta">
+        <div class="kind"><i></i>Email</div>
+        <div class="kind-n">kind 1301 · gift-wrapped</div>
+        <h3>Mailstr</h3>
+        <p>A real email address for your Nostr key. Mail sent to you@mailstr.app arrives encrypted to your key and opens in Mailstr or any compatible client.</p>
+        <dl><div><dt>Address</dt><dd>mailstr.app</dd></div><div><dt>Delivery</dt><dd>NIP-59 gift wrap</dd></div><div><dt>Source</dt><dd>nail · MIT</dd></div></dl>
+        <a class="go" href="#">Open Mailstr ↗</a>
+      </div>
+      <figure class="plate">
+        <div class="art" style="padding:40px 0 0 40px"><div class="win" style="border-radius:8px 0 0 0;border-right:0;border-bottom:0"><div class="bar"><i></i><i></i><i></i><span>mailstr.app / inbox</span></div><img src="./assets/mailstr.png" alt="Mailstr inbox" /></div></div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 AGENTS ============ -->
+<section id="agents" class="dark">
+  <div class="sheet" style="border:0">
+    <div class="row sh">
+      <span class="no cap">02 — Agents</span>
+      <h2>Agents don't need an integration. They need a key.</h2>
+    </div>
+    <div class="row agent-body">
+      <div class="copy">
+        <p>Most software keeps programs out until someone signs off: a developer account, an API key, a review, a scope. Nostr doesn't work that way. Every app reads and writes the same signed events over the same open protocol, so an agent with a key can do what any other client does. It can read a form's responses, put a meeting on a calendar or edit a shared document.</p>
+        <p><span class="mono" style="color:#f1f1ee">@formstr/mcp</span> packages that for MCP hosts such as Claude, Cursor and Goose: more than seventy tools across the suite, set up with one command.</p>
+      </div>
+    </div>
+    <div class="row agent-figs">
+      <figure class="fig-robot">
+        <div class="stage">
+          <div id="agent-canvas"></div>
+          <span class="cap tagline">Your agent</span><span class="cap tagline r">Signed in via NIP-46</span>
+        </div>
+        <figcaption><b>Fig. 2</b><span>The agent signs with its own key or yours, through a remote signer. It never sees the secret.</span></figcaption>
+      </figure>
+      <figure class="fig-term">
+        <div class="term">
+          <div class="bar"><span class="on">session</span><span>mcp.json</span></div>
+          <div class="body">
+            <div><span class="p">$</span> <span class="you">npx -y @formstr/mcp login</span></div>
+            <div class="p">? Sign in with › Bunker URI (NIP-46)</div>
+            <div><span class="ok">✓</span> Connected. Your key stays in your signer.</div>
+            <div class="sep"></div>
+            <div><span class="p">you ›</span> <span class="you">Put Thursday's supplier workshop on my calendar,</span></div>
+            <div style="padding-left:52px" class="you">make a feedback form for it, and email the</div>
+            <div style="padding-left:52px" class="you">link to everyone who's attending.</div>
+            <div class="sep"></div>
+            <div class="tool" style="--c:#7fb0ff"><span class="t">create_calendar_event</span><span class="p">Supplier workshop · Thu 10:00</span><span class="ok">done</span></div>
+            <div class="tool" style="--c:#ffa36b"><span class="t">create_form</span><span class="p">Workshop feedback · 5 questions</span><span class="ok">done</span></div>
+            <div class="tool" style="--c:#ff8a8d"><span class="t">send_mail</span><span class="p">14 recipients</span><span class="wait">needs your OK</span></div>
+          </div>
+        </div>
+        <figcaption><b>Fig. 3</b><span>Creating things is on by default. Sending, sharing, editing and deleting wait for <span class="mono">--allow-writes</span> and an explicit confirmation.</span></figcaption>
+      </figure>
+    </div>
+    <div class="row specs">
+      <div class="spec">
+        <div><h4>Key custody</h4><p>OS keychain, NIP-49 encrypted, or a remote signer. Keys never enter the conversation.</p></div>
+        <div><h4>Guardrails</h4><p>Outward and destructive actions need <code>--allow-writes</code> and <code>confirm: true</code>.</p></div>
+        <div><h4>Any model</h4><p>Works with any MCP host, including local models through Goose and Ollama.</p></div>
+        <div><h4>Install</h4><p><code>npx -y @formstr/mcp</code><br />Open source on npm.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 SECURITY ============ -->
+<section id="security">
+  <div class="sheet" style="border-top:0">
+    <div class="row sh">
+      <span class="no cap">03 — Security</span>
+      <h2>Security you can check, not just trust.</h2>
+      <p class="lede">Encryption happens in your browser before anything is sent. Relays store ciphertext and signatures. They can't read your content, and neither can we. The code that does this is open for your security team to review.</p>
+    </div>
+    <div class="row sec-grid">
+      <dl class="sec-table">
+        <div><dt>Identity</dt><dd>A key pair, not an account. Sign in with a browser extension, a remote signer (<code>NIP-46</code>) or a local key.</dd></div>
+        <div><dt>Encryption</dt><dd><code>NIP-44</code>, performed on your device. Shared items are delivered with <code>NIP-59</code> gift wraps.</dd></div>
+        <div><dt>Data location</dt><dd>Relays you choose. Run your own to keep data inside your network.</dd></div>
+        <div><dt>Files</dt><dd>Blossom servers you choose, public or self-hosted.</dd></div>
+        <div><dt>Audit trail</dt><dd>Every change is a signed event. Each one says which key, person or agent, made it.</dd></div>
+        <div><dt>Tracking</dt><dd>No analytics and no advertising. <a href="#">Privacy policy</a></dd></div>
+      </dl>
+      <figure class="fig-sec">
+        <div class="cipher">
+          <div><span class="cap">On the relay · kind 1069</span>
+<pre>"content": "AgT7x9Qd2Kf8mPz1rR4vN6wYbH3eL0cJs5Uo9aZqW1tE8yRbN2mK
+c4Vh7LpXs0dF3gJ6nQ9uY2iO5wT8rA1zC4vB7eH0kM3pS6…8B=="</pre></div>
+          <div class="clear"><span class="cap" style="color:var(--ink)">On the owner's device</span>
+            <div class="ans"><div><span>How was the visit?</span>Smooth</div><div><span>What should we change?</span>Badge pickup took twenty minutes. Could the passes be ready the day before?</div></div>
+          </div>
+        </div>
+        <figcaption><b>Fig. 4</b><span>A form response as stored and as read. Only the form owner's key turns one into the other.</span></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 SOURCE ============ -->
+<section id="source" class="rule">
+  <div class="sheet" style="border-top:0">
+    <div class="row sh">
+      <span class="no cap">04 — Source</span>
+      <h2>Built in public, from the first commit.</h2>
+      <p class="lede">Every app is open source and developed in the open on GitHub. Read the code, file an issue or run it yourself.</p>
+    </div>
+    <div class="row">
+      <div class="repos">
+        <div class="h"><span>Repository</span><span>What it is</span><span>Stars</span><span>Last commit</span><span></span></div>
+        <a href="#"><span class="name"><span class="dot" style="--c:var(--forms)"></span>nostr-forms</span><span class="what">Formstr, encrypted forms and surveys</span><span class="num">81</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
+        <a href="#"><span class="name"><span class="dot" style="--c:var(--cal)"></span>nostr-calendar</span><span class="what">Calendar, events and booking pages</span><span class="num">19</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
+        <a href="#"><span class="name"><span class="dot" style="--c:#ec4899"></span>nostr-polls</span><span class="what">Polls on Nostr</span><span class="num">18</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
+        <a href="#"><span class="name"><span class="dot" style="--c:var(--pages)"></span>nostr-docs</span><span class="what">Pages, collaborative documents</span><span class="num">7</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
+        <a href="#"><span class="name"><span class="dot" style="--c:var(--drive)"></span>formstr-drive</span><span class="what">Drive, files on Blossom</span><span class="num">5</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
+        <a href="#"><span class="name"><span class="dot" style="--c:var(--mail)"></span>nail</span><span class="what">Mailstr, the email ⇄ Nostr bridge</span><span class="num">1</span><span class="num">Oct 21, 2026</span><span>↗</span></a>
+        <a href="#"><span class="name"><span class="dot"></span>common-packages</span><span class="what">@formstr/mcp and the shared SDKs</span><span class="num">—</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CLOSE ============ -->
+<section class="close rule">
+  <div class="sheet" style="border-top:0">
+    <div class="row">
+      <h2>Bring Formstr to your organization.</h2>
+      <div class="end">
+        <p>We'll walk your team through the architecture, the security model and running your own relays and storage.</p>
+        <div class="btns"><a class="btn btn-ink" href="#">hello@formstr.app</a><a class="btn btn-line" href="#">Try the apps</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="rule">
+  <div class="sheet">
+    <div class="row">
+      <div class="l"><img src="/public/images/formstr/formstr-logo.svg" height="22" alt="Formstr" /><span>Open-source work tools on Nostr.</span></div>
+      <div class="r"><a href="#">GitHub</a><a href="#">npm</a><a href="#">Nostr</a><a href="#">Privacy</a></div>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="./agent-scene.js"></script>
+</body>
+</html>

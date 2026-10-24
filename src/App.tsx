@@ -1,481 +1,192 @@
-import { useEffect, useState, useRef, lazy, Suspense } from "react";
-import type { CSSProperties } from "react";
-import {
-  Mail,
-  FileEdit,
-  CalendarDays,
-  HardDrive,
-  Radio,
-  Flower2,
-  ArrowRight,
-  ArrowUpRight,
-  Github,
-  ChevronDown,
-  KeyRound,
-  Globe,
-  ShieldCheck,
-  Zap,
-  Check,
-  Lock,
-  Scale,
-  X,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import { createRoot } from "react-dom/client";
+import type { Root } from "react-dom/client";
+import type { ComponentType, CSSProperties, ReactNode } from "react";
+import { ArrowDown, ArrowUpRight, Check, ChevronDown, Copy, Lock } from "lucide-react";
 import "./index.css";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import { useHeroScroll, useCanRender3D } from "./three/useHeroScroll";
+import repoStats from "./data/repos.json";
 
-/* Lazy 3D scene — only loaded client-side, never in the SSR bundle. */
-const HeroScene = lazy(() => import("./three/HeroScene"));
-
-/* Stagger helper: delays a `.reveal` element's transition so grid siblings
-   cascade in one after another instead of all at once. */
-const rv = (step: number): CSSProperties =>
-  ({ "--rd": `${step * 90}ms` }) as CSSProperties;
-
-/* Scroll effects, JS-driven so they work on every browser (incl. iOS Safari,
-   which doesn't support CSS scroll-timelines):
-   - IntersectionObserver reveals `.reveal` elements as they enter the viewport
-   - a passive scroll listener feeds the top progress bar
-   Both honor prefers-reduced-motion and degrade gracefully without JS. */
-function useScrollFx() {
-  useEffect(() => {
-    const reduce =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    const els = Array.from(
-      document.querySelectorAll<HTMLElement>(".reveal"),
-    );
-
-    let io: IntersectionObserver | undefined;
-    if (reduce || typeof IntersectionObserver === "undefined") {
-      els.forEach((el) => el.classList.add("is-visible"));
-    } else {
-      io = new IntersectionObserver(
-        (entries, obs) => {
-          for (const e of entries) {
-            if (e.isIntersecting) {
-              e.target.classList.add("is-visible");
-              obs.unobserve(e.target);
-            }
-          }
-        },
-        { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
-      );
-      els.forEach((el) => io!.observe(el));
-    }
-
-    const bar = document.querySelector<HTMLElement>(".scroll-progress");
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const doc = document.documentElement;
-        const max = doc.scrollHeight - doc.clientHeight;
-        const p = max > 0 ? Math.min(doc.scrollTop / max, 1) : 0;
-        bar?.style.setProperty("--scroll", String(p));
-      });
-    };
-    if (!reduce && bar) {
-      onScroll();
-      window.addEventListener("scroll", onScroll, { passive: true });
-      window.addEventListener("resize", onScroll, { passive: true });
-    }
-
-    return () => {
-      io?.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-}
-
-/* ------------------------------------------------------------------ */
-/* Brand glyph — the gear-flower asterisk                              */
-/* ------------------------------------------------------------------ */
-
-function Asterisk({
-  className = "",
-  spin = false,
-}: {
-  className?: string;
-  spin?: boolean;
-}) {
-  return (
-    <svg
-      viewBox="-70 -70 140 140"
-      className={`${className} ${spin ? "spin-slow" : ""}`}
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="astg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#ff5c00" />
-          <stop offset="0.55" stopColor="#ff8a00" />
-          <stop offset="1" stopColor="#ffb020" />
-        </linearGradient>
-      </defs>
-      <g fill="url(#astg)">
-        <circle cx="0" cy="-30" r="27" />
-        <circle cx="26" cy="-15" r="27" />
-        <circle cx="26" cy="15" r="27" />
-        <circle cx="0" cy="30" r="27" />
-        <circle cx="-26" cy="15" r="27" />
-        <circle cx="-26" cy="-15" r="27" />
-        <circle cx="0" cy="0" r="34" />
-      </g>
-      <g fill="#ffd98a">
-        <rect x="-7" y="-44" width="14" height="88" rx="7" />
-        <rect x="-7" y="-44" width="14" height="88" rx="7" transform="rotate(60)" />
-        <rect x="-7" y="-44" width="14" height="88" rx="7" transform="rotate(120)" />
-      </g>
-      <circle r="9" fill="#ff5c00" />
-    </svg>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* A faux browser address bar for the preview windows                  */
-/* ------------------------------------------------------------------ */
-
-function UrlBar({ url, className = "" }: { url: string; className?: string }) {
-  const stripped = url.replace(/^https?:\/\//, "");
-  const slash = stripped.indexOf("/");
-  const host = slash === -1 ? stripped : stripped.slice(0, slash);
-  const path = slash === -1 ? "" : stripped.slice(slash);
-  return (
-    <span
-      className={`inline-flex max-w-full items-center gap-1 truncate rounded-md bg-white/[0.07] px-2 py-1 font-mono text-[10px] leading-none ring-1 ring-white/10 ${className}`}
-    >
-      <Lock size={9} className="shrink-0 text-emerald-400" />
-      <span className="text-white/30">https://</span>
-      <span className="font-semibold text-white/90">{host}</span>
-      {path && <span className="text-white/45">{path}</span>}
-    </span>
-  );
-}
+/* The privacy page pulls in a markdown renderer the home page doesn't need,
+   so the browser loads it on demand. The prerender passes the real component
+   in (see entry-server.tsx); React keeps that prerendered HTML on screen until
+   this chunk arrives, so there's no flash. */
+const LazyPrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 
 /* ------------------------------------------------------------------ */
 /* Data                                                                */
 /* ------------------------------------------------------------------ */
 
-type App = {
-  id: string;
-  name: string;
-  tagline: string;
-  color: string;
-  url: string | null;
-  shot?: string;
-  /* constellation position in a 600×600 viewbox */
-  x: number;
-  y: number;
-};
+const GITHUB = "https://github.com/formstr-hq";
+const NPM_MCP = "https://www.npmjs.com/package/@formstr/mcp";
+const AGENTS_MD =
+  "https://github.com/formstr-hq/common-packages/blob/main/packages/mcp/AGENTS.md";
+const CONTACT = "mailto:hello@formstr.app";
+const MCP_CMD = "npx -y @formstr/mcp";
 
-const apps: App[] = [
-  {
-    id: "formstr",
-    name: "Formstr",
-    tagline: "Forms",
-    color: "#ff5c00",
-    url: "https://formstr.app",
-    shot: "/images/previews/formstr.png",
-    x: 420,
-    y: 128,
-  },
-  {
-    id: "pages",
-    name: "Pages",
-    tagline: "Docs",
-    color: "#10b981",
-    url: "https://pages.formstr.app",
-    shot: "/images/previews/pages.png",
-    x: 510,
-    y: 332,
-  },
-  {
-    id: "mailstr",
-    name: "Mailstr",
-    tagline: "Email",
-    color: "#f59e0b",
-    url: "https://mailstr.app",
-    shot: "/images/previews/mailstr.png",
-    x: 402,
-    y: 486,
-  },
-  {
-    id: "drive",
-    name: "Drive",
-    tagline: "Storage",
-    color: "#8b5cf6",
-    url: "https://drive.formstr.app",
-    shot: "/images/previews/drive.png",
-    x: 162,
-    y: 462,
-  },
-  {
-    id: "calendar",
-    name: "Calendar",
-    tagline: "Events",
-    color: "#3b82f6",
-    url: "https://calendar.formstr.app",
-    shot: "/images/previews/calendar.png",
-    x: 138,
-    y: 166,
-  },
+const apps = [
+  { name: "Formstr", what: "Forms", url: "https://formstr.app", color: "var(--color-forms)" },
+  { name: "Calendar", what: "Events", url: "https://calendar.formstr.app", color: "var(--color-cal)" },
+  { name: "Pages", what: "Documents", url: "https://pages.formstr.app", color: "var(--color-pages)" },
+  { name: "Drive", what: "Files", url: "https://drive.formstr.app", color: "var(--color-drive)" },
+  { name: "Mailstr", what: "Email", url: "https://mailstr.app", color: "var(--color-mail)" },
 ];
 
-type Product = {
-  name: string;
-  tagline: string;
-  description: string;
-  icon: LucideIcon;
-  url: string | null;
-  color: string;
-  shot?: string;
-  status?: "beta" | "soon";
-};
-
-const products: Product[] = [
-  {
-    name: "Mailstr",
-    tagline: "Email for your Nostr key",
-    description:
-      "Claim you@mailstr.app and email sent to it arrives as an encrypted message only your key can read — right inside your Nostr client. No password to phish, no account to ban. It's yours, tied to your key.",
-    icon: Mail,
-    url: "https://mailstr.app",
-    color: "#f59e0b",
-    shot: "/images/previews/mailstr.png",
-  },
-  {
-    name: "Formstr Pages",
-    tagline: "Private Docs & Notes",
-    description:
-      "Private, Notion-style notes and documents on Nostr. Keep your knowledge base encrypted and entirely yours — with real-time collaboration when you want it, no central server.",
-    icon: FileEdit,
-    url: "https://pages.formstr.app",
-    color: "#10b981",
-    shot: "/images/previews/pages.png",
-  },
-  {
-    name: "Formstr Calendar",
-    tagline: "Decentralized Calendar",
-    description:
-      "Private events, RSVPs, recurring schedules, and Calendly-style booking pages on Nostr — all end-to-end encrypted. No central server keeping a log of who you meet and when.",
-    icon: CalendarDays,
-    url: "https://calendar.formstr.app",
-    color: "#3b82f6",
-    shot: "/images/previews/calendar.png",
-  },
-  {
-    name: "Formstr Drive",
-    tagline: "Decentralized File Storage",
-    description:
-      "Upload, organize, and share files with no central authority watching. Nostr for the index, Blossom servers you choose for the bytes. Your files, your servers, your rules.",
-    icon: HardDrive,
-    url: "https://drive.formstr.app",
-    color: "#8b5cf6",
-    shot: "/images/previews/drive.png",
-  },
-  {
-    name: "Formstr Relay",
-    tagline: "Nostr Relay",
-    description:
-      "Our own relay, tuned for the Formstr ecosystem. Fast and reliable, optimized for forms, polls, docs, and calendar events.",
-    icon: Radio,
-    url: null,
-    color: "#64748b",
-    status: "soon",
-  },
-  {
-    name: "Blossom Server",
-    tagline: "Decentralized Blob Storage",
-    description:
-      "Self-hosted blob storage for the ecosystem. Store and serve media with the Blossom protocol — decentralized, censorship-resistant hosting.",
-    icon: Flower2,
-    url: null,
-    color: "#f43f5e",
-    status: "soon",
-  },
+/* Repos shown in the Source section. Stars and dates come from
+   src/data/repos.json, refreshed at build time by scripts/fetch-repos.mjs. */
+const repos = [
+  { name: "nostr-forms", what: "Formstr: encrypted forms and surveys", color: "var(--color-forms)" },
+  { name: "nostr-calendar", what: "Calendar: events and booking pages", color: "var(--color-cal)" },
+  { name: "nostr-docs", what: "Pages: collaborative documents", color: "var(--color-pages)" },
+  { name: "formstr-drive", what: "Drive: files on Blossom", color: "var(--color-drive)" },
+  { name: "nail", what: "Mailstr: the email ⇄ Nostr bridge", color: "var(--color-mail)" },
+  { name: "nostr-polls", what: "Polls on Nostr", color: "var(--color-polls)" },
+  { name: "common-packages", what: "@formstr/mcp and the shared SDKs", color: "var(--color-ink)" },
 ];
 
-const principles = [
-  {
-    icon: KeyRound,
-    title: "Own your data",
-    description:
-      "Your work lives on relays you choose, under a key only you hold. No company holds it hostage.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Privacy you can verify",
-    description:
-      "Encrypted with your keys. Relays store ciphertext they can't read. Not a promise — math.",
-  },
-  {
-    icon: Globe,
-    title: "Open & interoperable",
-    description:
-      "Open protocols, open source. Your forms and docs are readable by any Nostr client. Extend it, remix it, self-host it.",
-  },
-  {
-    icon: Zap,
-    title: "Bring your own keys",
-    description:
-      "Already on Nostr? Sign in with your key. New here? Create one with us in a tap — no email, no password, nothing to ban.",
-  },
-];
+type RepoStat = { stars: number; pushedAt: string; license: string | null };
+const stats = repoStats.repos as Record<string, RepoStat | undefined>;
+
+// Fixed locale + UTC so the prerendered HTML and the hydrated client agree.
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
 /* ------------------------------------------------------------------ */
-/* Mobile showcase — auto-cycling app preview (3D hero is              */
-/* desktop-only, so phones get their own interactive demo)             */
+/* Layout primitives                                                   */
 /* ------------------------------------------------------------------ */
 
-function MobileShowcase() {
-  const [active, setActive] = useState(0);
-  const [auto, setAuto] = useState(true);
-
-  useEffect(() => {
-    if (!auto) return;
-    const id = setInterval(
-      () => setActive((a) => (a + 1) % apps.length),
-      2600,
-    );
-    return () => clearInterval(id);
-  }, [auto]);
-
-  const app = apps[active];
-
+/* 12-column row inside the sheet. Collapses to one column below lg. */
+function Row({ className = "", children }: { className?: string; children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-lg">
-      {/* window chrome */}
-      <div className="flex items-center gap-1.5 bg-ink px-3 py-2.5">
-        <span
-          className="h-2.5 w-2.5 rounded-full transition-colors"
-          style={{ background: app.color }}
-        />
-        <span className="h-2.5 w-2.5 rounded-full bg-white/25" />
-        <span className="h-2.5 w-2.5 rounded-full bg-white/25" />
-        <UrlBar url={app.url ?? ""} className="ml-1.5" />
-      </div>
-
-      {/* crossfading real screenshots */}
-      <div className="relative aspect-[16/10] overflow-hidden bg-paper">
-        {apps.map((a, i) => (
-          <img
-            key={a.id}
-            src={a.shot}
-            alt={`${a.name} preview`}
-            loading="lazy"
-            className={`absolute inset-0 h-full w-full object-cover object-top transition-opacity duration-500 ${
-              i === active ? "opacity-100" : "opacity-0"
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* meta + open */}
-      <div className="flex items-center justify-between gap-3 p-4">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="h-3 w-3 rounded-full transition-colors"
-            style={{ background: app.color }}
-          />
-          <div>
-            <p className="text-sm font-bold leading-tight text-ink">{app.name}</p>
-            <p
-              className="text-xs font-semibold transition-colors"
-              style={{ color: app.color }}
-            >
-              {app.tagline}
-            </p>
-          </div>
-        </div>
-        <a
-          href={app.url ?? "#apps"}
-          target={app.url ? "_blank" : undefined}
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white transition-transform active:scale-95"
-          style={{ background: app.color }}
-        >
-          Open <ArrowUpRight size={15} />
-        </a>
-      </div>
-
-      {/* selector chips */}
-      <div className="flex flex-wrap gap-2 border-t border-black/5 p-3">
-        {apps.map((a, i) => {
-          const on = i === active;
-          return (
-            <button
-              key={a.id}
-              onClick={() => {
-                setActive(i);
-                setAuto(false);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors"
-              style={
-                on
-                  ? {
-                      borderColor: a.color,
-                      color: a.color,
-                      background: `${a.color}12`,
-                    }
-                  : { borderColor: "rgba(0,0,0,0.1)", color: "#6b7280" }
-              }
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ background: a.color }}
-              />
-              {a.name}
-            </button>
-          );
-        })}
-      </div>
+    <div className={`grid grid-cols-1 gap-x-6 px-6 sm:px-10 lg:grid-cols-12 lg:px-12 [&>*]:min-w-0 ${className}`}>
+      {children}
     </div>
   );
 }
 
+/* Numbered section head: "01 — The suite" in the margin, title in the body. */
+function SectionHead({ no, title, lede }: { no: string; title: string; lede?: ReactNode }) {
+  return (
+    <Row className="mb-14 items-start lg:mb-18">
+      <span className="cap pt-3 lg:col-span-3">{no}</span>
+      <div className="mt-4 lg:col-span-7 lg:mt-0">
+        <h2 className="text-[34px] font-semibold leading-[1.06] tracking-[-0.03em] sm:text-[44px] lg:text-[52px]">
+          {title}
+        </h2>
+        {lede && <p className="mt-6 max-w-[620px] text-[17px] leading-relaxed text-ink-2 lg:text-lg">{lede}</p>}
+      </div>
+    </Row>
+  );
+}
+
+function Figcap({ n, children }: { n: number; children: ReactNode }) {
+  return (
+    <figcaption className="figcap">
+      <b>Fig. {n}</b>
+      <span>{children}</span>
+    </figcaption>
+  );
+}
+
+/* Browser-window chrome around a product plate. */
+function Win({ url, flush = false, children }: { url: string; flush?: boolean; children: ReactNode }) {
+  return (
+    <div className={`win ${flush ? "rounded-b-none rounded-tr-none border-r-0 border-b-0" : ""}`}>
+      <div className="flex h-[34px] items-center gap-1.5 border-b border-line-2 px-3">
+        <i className="h-[9px] w-[9px] rounded-full bg-[#e4e4e1]" />
+        <i className="h-[9px] w-[9px] rounded-full bg-[#e4e4e1]" />
+        <i className="h-[9px] w-[9px] rounded-full bg-[#e4e4e1]" />
+        <span className="ml-2.5 truncate font-mono text-[11.5px] text-mute">{url}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CopyCommand({ dark = false }: { dark?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(MCP_CMD).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        });
+      }}
+      className={`flex h-[42px] w-full items-center justify-between rounded-[4px] border px-3.5 font-mono text-[13.5px] transition-colors ${
+        dark
+          ? "border-night-line bg-night-2 text-night-text hover:border-night-mute"
+          : "border-line bg-white text-ink hover:border-faint"
+      }`}
+      aria-label={`Copy ${MCP_CMD}`}
+    >
+      <span>
+        <span className="text-faint">$ </span>
+        {MCP_CMD}
+      </span>
+      <span className="cap flex items-center gap-1.5">
+        {copied ? <Check size={12} /> : <Copy size={12} />}
+        {copied ? "Copied" : "Connect an agent"}
+      </span>
+    </button>
+  );
+}
+
 /* ------------------------------------------------------------------ */
-/* Nav                                                                 */
+/* Masthead                                                            */
 /* ------------------------------------------------------------------ */
 
 function Launcher() {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink/85"
+        aria-expanded={open}
+        className="inline-flex h-[34px] items-center gap-1.5 rounded-[4px] bg-ink px-3.5 text-[13.5px] font-medium text-white"
       >
-        Launch an app
-        <ChevronDown
-          size={15}
-          className={`transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        Open the apps
+        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-60 rounded-2xl border border-black/10 bg-white p-1.5 shadow-xl">
+          <div className="absolute right-0 z-50 mt-2 w-64 border border-line bg-white p-1.5 shadow-[0_16px_40px_-12px_rgb(0_0_0/0.2)]">
             {apps.map((a) => (
               <a
-                key={a.id}
-                href={a.url ?? "#apps"}
-                target={a.url ? "_blank" : undefined}
+                key={a.name}
+                href={a.url}
+                target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-black/[0.04]"
+                className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-paper"
               >
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ background: a.color }}
-                />
-                <span className="text-sm font-semibold text-ink">{a.name}</span>
-                <span className="ml-auto text-xs text-gray-400">{a.tagline}</span>
+                <i className="h-2 w-2 rounded-[2px]" style={{ background: a.color }} />
+                <span className="text-sm font-medium">{a.name}</span>
+                <span className="cap ml-auto">{a.what}</span>
               </a>
             ))}
+            <a
+              href={NPM_MCP}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 flex items-center gap-3 border-t border-line-2 px-3 py-2.5 transition-colors hover:bg-paper"
+            >
+              <i className="h-2 w-2 rounded-[2px] bg-ink" />
+              <span className="font-mono text-[13px]">@formstr/mcp</span>
+              <span className="cap ml-auto">Agents</span>
+            </a>
           </div>
         </>
       )}
@@ -484,774 +195,898 @@ function Launcher() {
 }
 
 export function Navbar() {
+  const links = [
+    ["01", "Suite", "/#suite"],
+    ["02", "Agents", "/#agents"],
+    ["03", "Security", "/#security"],
+    ["04", "Source", "/#source"],
+  ];
   return (
-    <nav className="sticky top-0 z-50 border-b border-black/5 bg-paper/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        <a href="/" className="flex items-center gap-2">
-          <img src="/images/formstr/formstr-logo.svg" alt="Formstr" className="h-9" />
-        </a>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <a
-            href="https://github.com/formstr-hq"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-gray-500 transition-colors hover:text-ink"
-            aria-label="GitHub"
-          >
-            <Github size={20} />
+    <header className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur-md">
+      <div className="sheet">
+        <Row className="h-[60px] items-center">
+          <a href="/" className="col-start-1 row-start-1 lg:col-span-3" aria-label="Formstr home">
+            <img src="/images/formstr/formstr-logo.svg" alt="Formstr" className="block h-7" />
           </a>
-          <Launcher />
-        </div>
-      </div>
-    </nav>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Product card                                                        */
-/* ------------------------------------------------------------------ */
-
-function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
-  const Icon = product.icon;
-  const live = !!product.url;
-
-  return (
-    <div
-      style={rv(index)}
-      className="reveal reveal-scale group relative flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white transition-all hover:-translate-y-1 hover:shadow-xl"
-    >
-      {product.shot ? (
-        <div className="relative h-40 overflow-hidden border-b border-black/5 bg-paper">
-          {/* tape */}
-          <span className="absolute left-1/2 top-2 z-10 h-4 w-16 -translate-x-1/2 rotate-2 rounded-[2px] bg-amber/40 ring-1 ring-amber/30" />
-          <img
-            src={product.shot}
-            alt={`${product.name} preview`}
-            className="h-full w-full rotate-[0.6deg] scale-[1.04] object-cover object-top transition-transform duration-300 group-hover:rotate-0 group-hover:scale-100"
-          />
-        </div>
-      ) : (
-        <div
-          className="relative flex h-40 items-center justify-center overflow-hidden border-b border-black/5"
-          style={{
-            background: `linear-gradient(135deg, ${product.color}14, ${product.color}05)`,
-          }}
-        >
-          <div
-            className="absolute inset-0 opacity-[0.07]"
-            style={{
-              backgroundImage:
-                "linear-gradient(to right, #000 1px, transparent 1px), linear-gradient(to bottom, #000 1px, transparent 1px)",
-              backgroundSize: "26px 26px",
-            }}
-          />
-          <Icon size={44} strokeWidth={1.4} style={{ color: product.color }} />
-        </div>
-      )}
-
-      <div className="flex flex-1 flex-col p-6">
-        {product.status && (
-          <span className="absolute right-4 top-4 rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur">
-            {product.status === "beta" ? "In beta" : "Coming soon"}
-          </span>
-        )}
-        <div className="mb-3 flex items-center gap-3">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-lg"
-            style={{ background: `${product.color}18` }}
-          >
-            <Icon size={18} style={{ color: product.color }} />
-          </div>
-          <div>
-            <h3 className="font-bold leading-tight text-ink">{product.name}</h3>
-            <p className="text-xs font-semibold" style={{ color: product.color }}>
-              {product.tagline}
-            </p>
-          </div>
-        </div>
-        <p className="mb-4 flex-1 text-sm leading-relaxed text-gray-600">
-          {product.description}
-        </p>
-        {live && (
-          <a
-            href={product.url!}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink transition-colors hover:text-primary"
-          >
-            Open {product.name} <ArrowUpRight size={15} />
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Sections                                                            */
-/* ------------------------------------------------------------------ */
-
-const APP_BLURBS: Record<string, string> = {
-  formstr:
-    "Build forms and surveys that are end-to-end encrypted — responses only you can read, on relays you choose.",
-  pages:
-    "Write and publish documents you actually own. No platform can lock, mine, or sunset them.",
-  mailstr:
-    "Email for your Nostr key. Mail to you@mailstr.app arrives as an encrypted message only your key can read — no password, no account to ban.",
-  drive:
-    "Store and share files privately, encrypted with keys that never leave your control.",
-  calendar:
-    "Schedule events and share availability while your data stays entirely yours.",
-};
-
-/* A prominent card that opens when an app orb is clicked in the 3D hero. */
-function AppDetailCard({ app, onClose }: { app: App | null; onClose: () => void }) {
-  // Close on Escape for accessibility.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  if (!app) return null;
-
-  return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center p-6">
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
-      />
-      <div
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl border bg-ink shadow-2xl"
-        style={{ borderColor: `${app.color}55` }}
-      >
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-1.5 text-white/70 transition-colors hover:text-white"
-        >
-          <X size={18} />
-        </button>
-        {app.shot && (
-          <div className="relative h-56 w-full overflow-hidden">
-            <img
-              src={app.shot}
-              alt={`${app.name} preview`}
-              className="h-full w-full object-cover object-top"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink via-transparent" />
-          </div>
-        )}
-        <div className="p-6">
-          <div className="flex items-center gap-2">
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: app.color }}
-            />
-            <span
-              className="text-xs font-bold uppercase tracking-widest"
-              style={{ color: app.color }}
-            >
-              {app.tagline}
-            </span>
-          </div>
-          <h3 className="mt-2 text-2xl font-extrabold tracking-tight text-white">
-            {app.name}
-          </h3>
-          <p className="mt-2 text-sm leading-relaxed text-white/60">
-            {APP_BLURBS[app.id] ?? "Private by default. Yours to keep."}
-          </p>
-          {app.url && (
+          <nav className="hidden gap-8 text-sm text-ink-2 lg:col-span-6 lg:flex">
+            {links.map(([n, label, href]) => (
+              <a key={label} href={href} className="transition-colors hover:text-ink">
+                <span className="mr-1.5 font-mono text-[11px] text-faint">{n}</span>
+                {label}
+              </a>
+            ))}
+          </nav>
+          <div className="col-start-1 row-start-1 flex items-center gap-5 justify-self-end lg:col-span-3 lg:col-start-auto lg:row-start-auto">
             <a
-              href={app.url}
+              href={GITHUB}
               target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:-translate-y-0.5"
-              style={{ background: app.color }}
+              rel="noopener noreferrer"
+              className="hidden text-sm text-mute transition-colors hover:text-ink sm:block"
             >
-              Open {app.name} <ArrowUpRight size={16} />
+              GitHub
             </a>
-          )}
+            <Launcher />
+          </div>
+        </Row>
+      </div>
+    </header>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero + Fig. 1                                                       */
+/* ------------------------------------------------------------------ */
+
+function FormVignette() {
+  const field = "relative mt-[22px]";
+  const marker = "marker absolute -left-[22px] top-px";
+  return (
+    <div className="rounded-md border border-line-2 border-t-4 border-t-forms bg-white px-7 py-[26px]">
+      <h4 className="text-xl font-semibold tracking-[-0.01em]">Site visit feedback</h4>
+      <p className="mt-1.5 text-[13.5px] text-mute">Two minutes. Answers are encrypted to the facilities team.</p>
+      <div className={field}>
+        <span className={marker}>1</span>
+        <p className="mb-2 text-sm font-medium">
+          Your name <span className="text-mail">*</span>
+        </p>
+        <div className="flex h-[38px] items-center rounded-[4px] border border-line px-3 text-[13.5px] text-ink-2">
+          Dana Okafor
         </div>
       </div>
+      <div className={field}>
+        <span className={marker}>2</span>
+        <p className="mb-2 text-sm font-medium">How was the visit?</p>
+        <div className="flex gap-2">
+          {["Smooth", "Mixed", "Rough"].map((o, i) => (
+            <div
+              key={o}
+              data-on={i === 0 ? "" : undefined}
+              className={`opt flex h-[38px] min-w-0 flex-1 items-center gap-2 rounded-[4px] border px-2.5 text-[13px] sm:px-3 sm:text-[13.5px] ${
+                i === 0 ? "border-forms bg-[#fff6f0]" : "border-line"
+              }`}
+            >
+              {o}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={field}>
+        <span className={marker}>3</span>
+        <p className="mb-2 text-sm font-medium">What should we change?</p>
+        <div className="min-h-[70px] rounded-[4px] border border-line px-3 py-2.5 text-[13.5px] leading-normal text-ink-2">
+          Badge pickup took twenty minutes. Could the passes be ready the day before?
+        </div>
+      </div>
+      <div className="mt-[22px] flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-xs text-mute">
+          <Lock size={12} /> Response encrypted before sending
+        </span>
+        <span className="rounded-[4px] bg-ink px-4 py-2 text-[13.5px] font-medium text-white">Submit</span>
+      </div>
     </div>
+  );
+}
+
+function EventListing() {
+  const s = (t: string) => <span className="s">"{t}"</span>;
+  const k = (t: string) => <span className="k">"{t}"</span>;
+  const field = (id: string, type: string, label: string, n: number) => (
+    <>
+      <span className="hl">
+        {"    ["}
+        {s("field")}, {s(id)}, {s(type)}, {s(label)}, …]
+      </span>
+      {"  "}
+      <span className="marker align-[1px]">{n}</span>
+      {"\n"}
+    </>
+  );
+  return (
+    <pre className="ev">
+      {"{\n  "}
+      {k("kind")}: <span className="num">30168</span>,{"\n  "}
+      {k("pubkey")}: {s("3bf0c63fcb93463407af97a5e5ee64fa…")},{"\n  "}
+      {k("created_at")}: <span className="num">1761292800</span>,{"\n  "}
+      {k("tags")}: [{"\n    "}[{s("d")}, {s("site-visit")}],{"\n    "}[{s("name")}, {s("Site visit feedback")}],{"\n"}
+      {field("q1", "text", "Your name", 1)}
+      {field("q2", "option", "How was the visit?", 2)}
+      {field("q3", "text", "What should we change?", 3)}
+      {"  ],\n  "}
+      {k("sig")}: {s("a91c4e…07e2")}
+      {"\n}"}
+    </pre>
   );
 }
 
 function Hero() {
-  const heroRef = useRef<HTMLElement>(null);
-  const progressRef = useRef(0);
-  const pointerRef = useRef({ x: 0, y: 0 });
-  const canRender = useCanRender3D();
-  const [hoveredOrb, setHoveredOrb] = useState<string | null>(null);
-  const [selectedOrb, setSelectedOrb] = useState<string | null>(null);
-  // Pause the 3D render loop when the hero is scrolled out of view.
-  const [sceneActive, setSceneActive] = useState(true);
-
-  // Drive the 3D scene + CSS overlay vars from native scroll
-  useHeroScroll(heroRef, progressRef, canRender);
-
-  // Only render the WebGL scene while the hero is on screen — saves GPU,
-  // battery and heat while the rest of the page is being read.
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el || !canRender || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      ([entry]) => setSceneActive(entry.isIntersecting),
-      { rootMargin: "100px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [canRender]);
-
   return (
-    <section
-      ref={heroRef}
-      className={`hero-section relative ${canRender ? "hero-3d" : "hero-static"}`}
-    >
-      <div
-        className={`w-full overflow-hidden bg-ink ${
-          canRender ? "sticky top-0 h-screen" : "relative min-h-[85vh]"
-        }`}
-      >
-        {/* ---- Poster fallback (always in DOM; hidden when canvas is active) ---- */}
-        <div
-          className={`hero-poster absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-700 ${
-            canRender ? "opacity-0 pointer-events-none" : "opacity-100"
-          }`}
-          aria-hidden={canRender}
-        >
-          {/* Dark gradient with brand glow */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse at 50% 50%, rgba(255,92,0,0.15) 0%, transparent 60%), radial-gradient(ellipse at 50% 100%, rgba(255,138,0,0.08) 0%, transparent 50%)",
-            }}
-          />
-          <Asterisk className="h-24 w-24 opacity-30" spin />
+    <div className="sheet">
+      <Row className="pt-16 pb-16 lg:pt-24">
+        <div className="mb-10 hidden justify-between lg:col-span-12 lg:flex">
+          <span className="cap">Formstr · open-source work tools on Nostr</span>
+          <span className="cap">Forms · Calendar · Pages · Drive · Mailstr</span>
+        </div>
+        <span className="cap mb-6 lg:hidden">Formstr · open-source work tools on Nostr</span>
+
+        <h1 className="text-[44px] font-semibold leading-[1] tracking-[-0.04em] text-balance sm:text-[64px] lg:col-span-10 lg:text-[88px]">
+          Work tools for people and their agents.
+        </h1>
+        <p className="mt-8 text-[17px] leading-[1.6] text-ink-2 sm:text-[19px] lg:col-span-6 lg:mt-9">
+          Forms, documents, calendars, files and email, built on Nostr, an open protocol. Your work is signed with your
+          key and encrypted on your device. The people and AI agents you trust can work with it directly. There are no
+          API keys to provision and no integrations to maintain.
+        </p>
+        <div className="mt-8 flex flex-col gap-3 self-end lg:col-span-5 lg:col-start-8 lg:mt-0">
+          <a
+            href="#suite"
+            className="inline-flex h-[42px] items-center justify-between rounded-[4px] bg-ink px-[18px] text-[14.5px] font-medium text-white"
+          >
+            Explore the suite <ArrowDown size={16} />
+          </a>
+          <CopyCommand />
         </div>
 
-        {/* ---- 3D Canvas (client-only, lazy-loaded) ---- */}
-        {canRender && (
-          <Suspense fallback={null}>
-            <HeroScene
-              progressRef={progressRef}
-              pointerRef={pointerRef}
-              hoveredOrb={hoveredOrb}
-              onHoverOrb={setHoveredOrb}
-              onSelectOrb={setSelectedOrb}
-              active={sceneActive}
-            />
-          </Suspense>
-        )}
-
-        {/* ---- Legibility scrim behind copy (only when 3D is active) ---- */}
-        {canRender && (
-          <div
-            className="hero-scrim pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(105deg, rgba(5,5,8,0.82) 0%, rgba(5,5,8,0.45) 28%, transparent 55%), linear-gradient(0deg, rgba(5,5,8,0.7) 0%, transparent 32%)",
-            }}
-            aria-hidden="true"
-          />
-        )}
-
-        {/* ---- Copy overlays (real DOM, prerendered for SEO) ---- */}
-        <div className="hero-overlays absolute inset-0 pointer-events-none">
-          <div className="absolute bottom-0 left-0 w-full max-w-2xl px-6 pb-14 sm:px-10 lg:pb-20">
-          {/* Act 1 (the SEO headline) */}
-          <div
-            className="hero-act hero-act-1"
-            style={{ opacity: "var(--act1, 0)" } as CSSProperties}
-          >
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-primary-light backdrop-blur-sm">
-              <Asterisk className="h-3.5 w-3.5" /> Free it, don't cage it
+        <figure className="mt-16 lg:col-span-12 lg:mt-[72px]">
+          <div className="grid border border-line bg-sheet lg:grid-cols-2 [&>*]:min-w-0">
+            <div className="p-5 pl-10 sm:p-8 sm:pl-12">
+              <div className="mb-[22px] flex justify-between gap-4">
+                <span className="cap">What a person sees</span>
+                <span className="cap hidden sm:inline">formstr.app/f/site-visit</span>
+              </div>
+              <FormVignette />
             </div>
-            <h1 className="text-5xl font-extrabold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Your life's work
-              <br />
-              shouldn't have
-              <br />a <span className="text-primary-light">jailer.</span>
-            </h1>
-            <p className="mt-5 max-w-md text-base leading-relaxed text-white/60 sm:text-lg">
-              Forms, docs, polls, schedules, files — encrypted with keys only
-              you hold, on relays you pick.{" "}
-              <span className="font-semibold text-white">
-                Security you can actually verify.
+            <div className="relative border-t border-line bg-night p-5 sm:p-8 lg:border-t-0 lg:border-l">
+              <span className="absolute top-0 left-1/2 z-10 grid h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-line bg-paper font-mono text-[13px] lg:top-1/2 lg:left-0">
+                =
               </span>
-            </p>
-            <div className="hero-a1-cta mt-7 flex flex-wrap gap-3 pointer-events-auto">
-              <a
-                href="#apps"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30"
-              >
-                Explore the suite <ArrowRight size={16} />
-              </a>
-              <a
-                href="#privacy"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-6 py-3.5 text-sm font-semibold text-white/80 backdrop-blur-sm transition-colors hover:bg-white/[0.06]"
-              >
-                Why it's secure
-              </a>
+              <div className="mb-[22px] flex justify-between gap-4">
+                <span className="cap !text-night-mute">What an agent reads</span>
+                <span className="cap !text-night-mute">kind 30168 · signed</span>
+              </div>
+              <EventListing />
             </div>
           </div>
-
-          {/* Act 2 — The Key */}
-          <div
-            className="hero-act hero-act-2 absolute bottom-14 left-6 sm:left-10 lg:bottom-20"
-            style={{ opacity: "var(--act2, 0)" } as CSSProperties}
-          >
-            <p className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
-              One key.
-            </p>
-            <p className="mt-2 text-lg text-white/55">
-              Only you hold it — and nothing opens without it.
-            </p>
-          </div>
-
-          <div
-            className="hero-act hero-act-3 absolute bottom-14 left-6 sm:left-10 lg:bottom-20"
-            style={{ opacity: "var(--act3, 0)" } as CSSProperties}
-          >
-            <p className="mb-2 h-5 text-sm font-semibold text-primary-light">
-              {hoveredOrb ? apps.find((a) => a.id === hoveredOrb)?.name : "\u00a0"}
-            </p>
-            <p className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
-              The whole suite is yours.
-            </p>
-            <p className="mt-2 max-w-md text-lg text-white/55">
-              One key, every app. Open source, yours to keep.
-            </p>
-            <div className="mt-6 pointer-events-auto">
-              <a
-                href="#apps"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30"
-              >
-                Explore the suite <ArrowRight size={16} />
-              </a>
-            </div>
-          </div>
-          </div>
-
-          {/* scroll hint — tells people the hero is a scene that plays as you
-              scroll, so they don't assume the CTA is the only way forward.
-              Top-of-scene on phones (the bottom is full of copy), bottom-centre
-              on desktop. Fades out as Act 1 gives way to the story. */}
-          <div
-            className="pointer-events-none absolute left-1/2 top-[4.5rem] flex -translate-x-1/2 flex-col items-center gap-1.5 text-center lg:top-auto lg:bottom-6"
-            style={{ opacity: "var(--act1, 0)" } as CSSProperties}
-          >
-            <span className="rounded-full bg-black/40 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 ring-1 ring-white/10 backdrop-blur-sm">
-              Keep scrolling to free your work
-            </span>
-            <ChevronDown size={20} className="animate-bounce text-white/50" />
-          </div>
-        </div>
-
-        {/* ---- Product card — opens when an app orb is clicked in Act 3 ---- */}
-        {canRender && selectedOrb && (
-          <AppDetailCard
-            app={apps.find((a) => a.id === selectedOrb) ?? null}
-            onClose={() => setSelectedOrb(null)}
-          />
-        )}
-
-        {/* ---- Static fallback showcase — only when the 3D scene can't run
-             (no WebGL / reduced-motion). When the scene runs on mobile this
-             is hidden so it doesn't overlap the canvas. ---- */}
-        {!canRender && (
-          <div className="hero-mobile absolute inset-x-0 bottom-0 px-6 pb-8 lg:hidden">
-            <div className="mx-auto max-w-sm">
-              <MobileShowcase />
-              <p className="mt-3 text-center text-sm text-white/40">
-                One key, every app. Tap to explore →
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
+          <Figcap n={1}>
+            One form, two readers. People get a form. Agents get the signed event it's made of, in a public format any
+            Nostr client can parse, with no Formstr API in between.
+          </Figcap>
+        </figure>
+      </Row>
+    </div>
   );
 }
 
-function Thesis() {
-  const caged = [
-    "Your account can be locked — and your company's work sealed inside",
-    "Your data — even who you meet and when — is watched and sold",
-    "The whole thing can be shut down on a roadmap you can't see",
-    "The way out is locked behind the next pricing tier",
+/* ------------------------------------------------------------------ */
+/* 01 — Suite                                                          */
+/* ------------------------------------------------------------------ */
+
+type EntryProps = {
+  color: string;
+  kindLabel: string;
+  kinds: string;
+  name: string;
+  body: string;
+  specs: [string, string][];
+  url: string;
+  plate: ReactNode;
+  flush?: boolean;
+};
+
+function Entry({ color, kindLabel, kinds, name, body, specs, url, plate, flush }: EntryProps) {
+  return (
+    <Row className="items-start border-t border-line pt-10 pb-16 first-of-type:border-t-0 lg:pb-[72px]">
+      <div className="lg:sticky lg:top-[100px] lg:col-span-3" style={{ "--c": color } as CSSProperties}>
+        <div className="cap flex items-center gap-2">
+          <i className="h-2 w-2 rounded-[2px]" style={{ background: color }} />
+          {kindLabel}
+        </div>
+        <p className="mt-1.5 font-mono text-[15px]" style={{ color }}>
+          {kinds}
+        </p>
+        <h3 className="mt-6 text-[30px] font-semibold tracking-[-0.028em] lg:mt-7 lg:text-[34px]">{name}</h3>
+        <p className="mt-3 text-[15.5px] leading-relaxed text-ink-2">{body}</p>
+        <dl className="mt-5 text-[13px]">
+          {specs.map(([dt, dd]) => (
+            <div key={dt} className="flex justify-between gap-3 border-t border-line py-2.5">
+              <dt className="text-mute">{dt}</dt>
+              <dd className="text-right font-mono text-[12.5px]">{dd}</dd>
+            </div>
+          ))}
+        </dl>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 inline-flex items-center gap-1 border-b border-ink pb-0.5 text-sm font-medium"
+        >
+          Open {name} <ArrowUpRight size={14} />
+        </a>
+      </div>
+      <figure className="mt-8 lg:col-span-9 lg:mt-0">
+        <div className={`overflow-hidden border border-line bg-sheet ${flush ? "pt-6 pl-6 sm:pt-10 sm:pl-10" : "p-4 sm:p-10"}`}>
+          {plate}
+        </div>
+      </figure>
+    </Row>
+  );
+}
+
+function FormsPlate() {
+  const bars: [string, number][] = [
+    ["Smooth", 15],
+    ["Mixed", 7],
+    ["Rough", 2],
   ];
-  const freed = [
-    "A key only you hold — no one can lock you out",
-    "End-to-end encrypted; relays can't read it",
-    "Open formats — walk out with your data anytime",
-    "Free, open source, and interoperable by design",
+  const rows = [
+    ["Dana Okafor", "Badge pickup took twenty minutes…", "09:41"],
+    ["Anonymous", "Great hosts. Parking was confusing.", "09:12"],
+    ["npub1qe3…7xk2", "Lunch was excellent, thank you.", "08:57"],
   ];
   return (
-    <section id="thesis" className="bg-ink text-white">
-      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-        <div className="reveal max-w-2xl">
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-primary-light">
-            The thesis
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Right now, your work is a prisoner.
-          </h2>
-          <p className="mt-4 text-lg leading-relaxed text-white/60">
-            The forms, docs, calendars, and files your business runs on are its
-            most valuable asset — and they're held on Big Tech's computers,
-            behind Big Tech's locks. You can be locked out, watched, or shut down
-            at any time. Formstr changes that: your work, your keys, yours to
-            keep.
-          </p>
+    <Win url="formstr.app / site-visit / responses">
+      <div className="grid sm:grid-cols-[1.1fr_1fr]">
+        <div className="p-6">
+          <h5 className="text-[15px] font-semibold">How was the visit?</h5>
+          <span className="cap">24 responses</span>
+          <div className="mt-5 grid gap-3 text-[13px]">
+            {bars.map(([label, n]) => (
+              <div key={label} className="grid grid-cols-[80px_1fr_26px] items-center gap-2.5">
+                <span>{label}</span>
+                <b className="h-2.5 rounded-[2px] bg-forms" style={{ width: `${(n / 15) * 100}%` }} />
+                <span className="text-right font-mono text-xs text-mute">{n}</span>
+              </div>
+            ))}
+          </div>
         </div>
-
-        <div className="mt-12 grid gap-5 md:grid-cols-2">
-          <div className="reveal reveal-left rounded-2xl border border-white/10 bg-white/[0.03] p-7">
-            <p className="mb-5 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-white/40">
-              <Lock size={16} /> Locked up
-            </p>
-            <ul className="space-y-3.5">
-              {caged.map((r) => (
-                <li key={r} className="flex gap-3 text-white/55">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/30" />
-                  <span className="leading-relaxed line-through decoration-white/20">
-                    {r}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="reveal reveal-right rounded-2xl border border-primary/30 bg-primary/[0.07] p-7">
-            <p className="mb-5 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-primary-light">
-              <KeyRound size={16} /> Free
-            </p>
-            <ul className="space-y-3.5">
-              {freed.map((o) => (
-                <li key={o} className="flex gap-3 text-white/90">
-                  <Check
-                    size={18}
-                    className="mt-0.5 shrink-0 text-primary-light"
-                  />
-                  <span className="leading-relaxed">{o}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="border-t border-line-2 px-6 py-3 text-[13px] sm:border-t-0 sm:border-l">
+          {rows.map(([who, what, at], i) => (
+            <div key={who} className={`flex justify-between gap-3 py-2.5 ${i ? "border-t border-line-2" : ""}`}>
+              <span>
+                {who}
+                <em className="mt-0.5 block not-italic text-ink-2">{what}</em>
+              </span>
+              <small className="font-mono text-[11.5px] text-mute">{at}</small>
+            </div>
+          ))}
         </div>
       </div>
-    </section>
+    </Win>
+  );
+}
+
+function PagesPlate() {
+  return (
+    <Win url="pages.formstr.app / q4-supplier-review">
+      <div className="px-6 pt-8 pb-10 text-[15px] leading-[1.7] text-ink-2 sm:px-14">
+        <div className="mb-6 flex items-center justify-between">
+          <span className="cap">Encrypted · shared with 2</span>
+          <div className="flex">
+            {[
+              ["PS", "#10b981"],
+              ["AI", "#0b0b0c"],
+              ["DO", "#3b82f6"],
+            ].map(([t, bg]) => (
+              <span
+                key={t}
+                className="-ml-1.5 grid h-[26px] w-[26px] place-items-center rounded-full border-2 border-white font-mono text-[10px] font-semibold text-white"
+                style={{ background: bg }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+        <h4 className="mb-3.5 text-[28px] font-semibold tracking-[-0.02em] text-ink">Q4 supplier review</h4>
+        <p>
+          Three of our five suppliers met every delivery window this quarter. Two slipped by more than a week, both during
+          the port strike in November.
+        </p>
+        <p className="cap mt-6 mb-1.5">Actions</p>
+        <ul className="list-disc pl-[18px] leading-[2.1]">
+          <li>
+            Renew the Halden contract on current terms{" "}
+            <span className="caret" style={{ "--c": "#10b981" } as CSSProperties}>
+              <b>Priya</b>
+            </span>
+          </li>
+          <li>
+            <span className="bg-ink/10">Ask Norvik for a revised lead-time commitment</span>{" "}
+            <span className="caret" style={{ "--c": "#0b0b0c" } as CSSProperties}>
+              <b>Agent · drafting</b>
+            </span>
+          </li>
+          <li>Send the site-visit feedback summary to facilities</li>
+        </ul>
+      </div>
+    </Win>
+  );
+}
+
+function DrivePlate() {
+  const files = [
+    ["Halden-contract-2027.pdf", "PDF", "#e5484d", "1.8 MB", "blossom.yourco.internal", "Oct 21"],
+    ["q4-deliveries.xlsx", "XLS", "#10b981", "412 KB", "blossom.yourco.internal", "Oct 20"],
+    ["site-visit-photos.zip", "ZIP", "#8b5cf6", "58.6 MB", "nostr.download", "Oct 18"],
+    ["badge-process.md", "DOC", "#3b82f6", "4 KB", "blossom.yourco.internal", "Oct 17"],
+  ];
+  return (
+    <Win url="drive.formstr.app">
+      <div className="flex justify-between border-b border-line-2 px-[22px] py-4 text-[13.5px] text-mute">
+        <span>
+          My Drive / <b className="font-semibold text-ink">Operations</b>
+        </span>
+        <span className="font-mono text-xs">4 items · 61.2 MB</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] border-collapse text-[13.5px] whitespace-nowrap">
+          <thead>
+            <tr>
+              {["Name", "Size", "Stored on", "Modified"].map((h) => (
+                <th key={h} className="cap border-b border-line-2 px-[22px] py-2.5 text-left font-medium">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {files.map(([name, x, c, size, where, at]) => (
+              <tr key={name}>
+                <td className="border-b border-line-2 px-[22px] py-3">
+                  <span className="flex items-center gap-3">
+                    <span className="ficon" data-x={x} style={{ "--c": c } as CSSProperties} />
+                    {name}
+                  </span>
+                </td>
+                <td className="border-b border-line-2 px-[22px] py-3 font-mono text-[12.5px] text-ink-2">{size}</td>
+                <td className="border-b border-line-2 px-[22px] py-3 font-mono text-[12.5px] text-ink-2">{where}</td>
+                <td className="border-b border-line-2 px-[22px] py-3 font-mono text-[12.5px] text-ink-2">{at}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Win>
+  );
+}
+
+function ShotPlate({ url, src, alt, w, h }: { url: string; src: string; alt: string; w: number; h: number }) {
+  return (
+    <Win url={url} flush>
+      <img src={src} alt={alt} width={w} height={h} loading="lazy" className="block h-auto w-full" />
+    </Win>
   );
 }
 
 function Suite() {
   return (
-    <section id="apps" className="border-t border-black/5">
-      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-        <div className="reveal mb-12 max-w-2xl">
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-primary">
-            The suite
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            One key. The whole suite is yours.
-          </h2>
-          <p className="mt-4 text-lg leading-relaxed text-gray-600">
-            A growing set of decentralized apps — each one replaces a tool that
-            holds your business's work captive today. Sign in once with your
-            Nostr key and they all work together.
-          </p>
-        </div>
+    <section id="suite" className="border-t border-line">
+      <div className="sheet py-24 lg:py-[120px]">
+        <SectionHead
+          no="01 — The suite"
+          title="Five apps. One key. Everything in an open format."
+          lede="Each app stands on its own. They share an identity and a data format, so they also work together, and with anything else that speaks Nostr. Each one is listed with the event kinds it stores your work as."
+        />
+        <Entry
+          color="var(--color-forms)"
+          kindLabel="Forms"
+          kinds="kind 30168 · 1069"
+          name="Formstr"
+          body="Surveys and forms with end-to-end encrypted responses, anonymous submissions and AI-assisted building. Only you and the people you add can read the answers."
+          specs={[
+            ["Address", "formstr.app"],
+            ["Responses", "NIP-44 encrypted"],
+            ["Source", "nostr-forms · MIT"],
+          ]}
+          url="https://formstr.app"
+          plate={<FormsPlate />}
+        />
+        <Entry
+          color="var(--color-cal)"
+          kindLabel="Calendar"
+          kinds="kind 31923 · 32678 private"
+          name="Calendar"
+          body="Events, RSVPs, recurring schedules and booking pages. Private events are encrypted; public ones can be shared with anyone on Nostr."
+          specs={[
+            ["Address", "calendar.formstr.app"],
+            ["Sign-in", "extension · NIP-46"],
+            ["Source", "nostr-calendar · MIT"],
+          ]}
+          url="https://calendar.formstr.app"
+          flush
+          plate={
+            <ShotPlate
+              url="calendar.formstr.app"
+              src="/images/previews/calendar.webp"
+              alt="Formstr Calendar, month view"
+              w={1440}
+              h={900}
+            />
+          }
+        />
+        <Entry
+          color="var(--color-pages)"
+          kindLabel="Documents"
+          kinds="kind 33457"
+          name="Pages"
+          body="Documents and notes in Markdown, encrypted by default, with live editing for everyone you share with, people and agents alike."
+          specs={[
+            ["Address", "pages.formstr.app"],
+            ["Collaboration", "real-time · multi-writer"],
+            ["Source", "nostr-docs"],
+          ]}
+          url="https://pages.formstr.app"
+          plate={<PagesPlate />}
+        />
+        <Entry
+          color="var(--color-drive)"
+          kindLabel="Files"
+          kinds="kind 34578"
+          name="Drive"
+          body="File storage where Nostr keeps the index and Blossom servers you choose keep the bytes. Use a public server, or run one inside your own network."
+          specs={[
+            ["Address", "drive.formstr.app"],
+            ["Storage", "Blossom · your choice"],
+            ["Source", "formstr-drive · MIT"],
+          ]}
+          url="https://drive.formstr.app"
+          plate={<DrivePlate />}
+        />
+        <Entry
+          color="var(--color-mail)"
+          kindLabel="Email"
+          kinds="kind 1301 · gift-wrapped"
+          name="Mailstr"
+          body="A real email address for your Nostr key. Mail sent to you@mailstr.app arrives encrypted to your key and opens in Mailstr or any compatible client."
+          specs={[
+            ["Address", "mailstr.app"],
+            ["Delivery", "NIP-59 gift wrap"],
+            ["Source", "nail · MIT"],
+          ]}
+          url="https://mailstr.app"
+          flush
+          plate={
+            <ShotPlate url="mailstr.app / inbox" src="/images/previews/mailstr.webp" alt="Mailstr inbox" w={1280} h={800} />
+          }
+        />
+      </div>
+    </section>
+  );
+}
 
-        {/* featured — Formstr */}
-        <div className="reveal reveal-scale mb-6 grid items-stretch overflow-hidden rounded-2xl border border-black/10 bg-white md:grid-cols-2">
-          <div className="flex flex-col justify-center p-8 lg:p-10">
-            <div className="mb-4 flex items-center gap-3">
-              <Asterisk className="h-10 w-10" />
-              <div>
-                <h3 className="text-2xl font-bold text-ink">Formstr</h3>
-                <p className="text-sm font-semibold text-primary">
-                  Decentralized Forms
-                </p>
+/* ------------------------------------------------------------------ */
+/* 02 — Agents                                                         */
+/* ------------------------------------------------------------------ */
+
+function canRender3D() {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
+  const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  if (conn?.saveData) return false;
+  try {
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch {
+    return false;
+  }
+}
+
+/* Fig. 2. The robot still is the figure; the live 3D scene is an
+   enhancement layered over it. The scene is only downloaded once the figure
+   nears the viewport (and only for visitors who can and want to run it). It
+   fades in once it has drawn, and if anything goes wrong (the chunk fails to
+   load, or the WebGL context is lost) it's removed and the still remains.
+
+   The canvas gets its own React root, outside <StrictMode>: StrictMode
+   remounts components once in development, and react-three-fiber answers an
+   unmount by forcing the WebGL context lost 500 ms later, even when the same
+   canvas has already remounted. That left a dead canvas in dev. */
+function AgentFigure() {
+  const stage = useRef<HTMLDivElement>(null);
+  const host = useRef<HTMLDivElement>(null);
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    const el = stage.current;
+    const mountEl = host.current;
+    if (!el || !mountEl || typeof IntersectionObserver === "undefined" || !canRender3D()) return;
+
+    let root: Root | null = null;
+    let render: ((active: boolean) => void) | null = null;
+    let visible = false;
+    let stopped = false;
+
+    const stop = () => {
+      stopped = true;
+      setLive(false);
+      // Let the still fade back in before the canvas disappears.
+      setTimeout(() => root?.unmount(), 500);
+    };
+
+    const near = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        near.disconnect();
+        import("./three/AgentScene")
+          .then(({ default: AgentScene }) => {
+            if (stopped) return;
+            root = createRoot(mountEl);
+            render = (active) =>
+              root!.render(<AgentScene active={active} onReady={() => setLive(true)} onLost={stop} />);
+            render(visible);
+          })
+          .catch(() => {
+            // Chunk failed to load: the still simply stays.
+          });
+      },
+      { rootMargin: "400px" },
+    );
+    // Only animate while the figure is on screen.
+    const onScreen = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (!stopped) render?.(visible);
+    });
+    near.observe(el);
+    onScreen.observe(el);
+    return () => {
+      stopped = true;
+      near.disconnect();
+      onScreen.disconnect();
+      root?.unmount();
+    };
+  }, []);
+
+  return (
+    <figure className="lg:col-span-5">
+      <div
+        ref={stage}
+        data-figure="agent"
+        data-live={live ? "" : undefined}
+        className="stage relative h-[440px] overflow-hidden border border-night-line lg:h-[520px]"
+      >
+        <img
+          src="/images/agent-poster.webp"
+          alt="Formstr's agent mascot, a small white robot, waving"
+          width={600}
+          height={780}
+          loading="lazy"
+          className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-500 ${
+            live ? "opacity-0" : "opacity-100"
+          }`}
+        />
+        <div
+          ref={host}
+          aria-hidden="true"
+          className={`absolute inset-0 transition-opacity duration-500 ${live ? "opacity-100" : "opacity-0"}`}
+        />
+        <span className="cap absolute bottom-3.5 left-4">Your agent</span>
+        <span className="cap absolute right-4 bottom-3.5 normal-case">npub1ag3…k9qz</span>
+      </div>
+      <Figcap n={2}>
+        Your agent, with an identity of its own. Every action it takes is signed by its key, so you can always tell
+        its work from yours.
+      </Figcap>
+    </figure>
+  );
+}
+
+function Session() {
+  const tools: [string, string, string, boolean][] = [
+    ["create_calendar_event", "#7fb0ff", "Supplier workshop · Thu 10:00", true],
+    ["create_form", "#ffa36b", "Workshop feedback · 5 questions", true],
+    ["send_mail", "#ff8a8d", "14 recipients", false],
+  ];
+  return (
+    <figure className="mt-8 flex flex-col lg:col-span-7 lg:mt-0">
+      <div className="flex flex-1 flex-col border border-night-line bg-night-2 font-mono text-[13px] leading-[1.75] text-[#c9c9c5] sm:text-[13.5px]">
+        <div className="flex h-[38px] items-center gap-[18px] border-b border-night-line px-4 text-[11.5px] text-night-mute">
+          <span className="text-night-text">session</span>
+          <span>mcp.json</span>
+        </div>
+        <div className="flex-1 overflow-x-auto px-6 py-[22px]">
+          <div>
+            <span className="text-[#6d6d6a]">$</span> <span className="text-[#f1f1ee]">{MCP_CMD} login</span>
+          </div>
+          <div className="text-[#6d6d6a]">? Sign in with › Create a new key</div>
+          <div>
+            <span className="text-[#57c785]">✓</span> New identity npub1ag3…k9qz, stored encrypted in the keystore.
+          </div>
+          <div className="my-4 border-t border-dashed border-[#2a2a2a]" />
+          <div className="grid grid-cols-[auto_1fr] gap-x-3">
+            <span className="text-[#6d6d6a]">you ›</span>
+            <span className="text-[#f1f1ee]">
+              Put Thursday's supplier workshop on my calendar, make a feedback form for it, and email the link to
+              everyone who's attending.
+            </span>
+          </div>
+          <div className="my-4 border-t border-dashed border-[#2a2a2a]" />
+          {tools.map(([name, c, what, done]) => (
+            <div key={name} className="grid grid-cols-[minmax(0,190px)_1fr_auto] gap-3.5 whitespace-nowrap">
+              <span style={{ color: c }}>{name}</span>
+              <span className="truncate text-[#6d6d6a]">{what}</span>
+              <span className={done ? "text-[#57c785]" : "text-[#e8b04b]"}>{done ? "done" : "needs your OK"}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Figcap n={3}>
+        Creating things is on by default. Sending, sharing, editing and deleting wait for{" "}
+        <span className="font-mono">--allow-writes</span> and an explicit confirmation.
+      </Figcap>
+    </figure>
+  );
+}
+
+function Agents() {
+  const specs: [string, ReactNode][] = [
+    [
+      "Its own key",
+      "An agent can create its own identity, stored NIP-49 encrypted in the OS keychain, or act for you through a remote signer (NIP-46).",
+    ],
+    [
+      "Guardrails",
+      <>
+        Outward and destructive actions need <code className="font-mono text-[12.5px] text-night-text">--allow-writes</code>{" "}
+        and <code className="font-mono text-[12.5px] text-night-text">confirm: true</code>.
+      </>,
+    ],
+    ["Any model", "Works with any MCP host, including local models through Goose and Ollama."],
+    [
+      "Install",
+      <>
+        <code className="font-mono text-[12.5px] text-night-text">{MCP_CMD}</code>
+        <br />
+        <a href={NPM_MCP} target="_blank" rel="noopener noreferrer" className="underline decoration-night-line underline-offset-4 hover:text-night-text">
+          npm
+        </a>{" "}
+        ·{" "}
+        <a href={AGENTS_MD} target="_blank" rel="noopener noreferrer" className="underline decoration-night-line underline-offset-4 hover:text-night-text">
+          AGENTS.md
+        </a>{" "}
+        ·{" "}
+        <a href="/llms.txt" className="underline decoration-night-line underline-offset-4 hover:text-night-text">
+          llms.txt
+        </a>
+      </>,
+    ],
+  ];
+  return (
+    <section id="agents" className="night bg-night text-night-text">
+      <div className="sheet py-24 lg:py-[120px]">
+        <SectionHead no="02 — Agents" title="Agents don't need an integration. They can generate their own key." />
+        <Row>
+          <div className="grid gap-[18px] text-[17px] leading-[1.65] text-[#b9b9b5] lg:col-span-6 lg:col-start-4 lg:-mt-6">
+            <p>
+              Most software keeps programs out until someone signs off: a developer account, an API key, a review, a
+              scope. Nostr doesn't work that way. Every app reads and writes the same signed events over the same open
+              protocol, so an agent with a key can do what any other client does. It can read a form's responses, put a
+              meeting on a calendar or edit a shared document. And it doesn't have to wait to be issued that key: it
+              can create its own identity in one step, or act for you through a remote signer.
+            </p>
+            <p>
+              <span className="font-mono text-[#f1f1ee]">@formstr/mcp</span> packages that for MCP hosts such as
+              Claude, Cursor and Goose: more than seventy tools across the suite, set up with one command.
+            </p>
+          </div>
+        </Row>
+        <Row className="mt-14 items-stretch lg:mt-[72px]">
+          <AgentFigure />
+          <Session />
+        </Row>
+        <Row className="mt-14">
+          <div className="grid gap-x-6 border-t border-night-line sm:grid-cols-2 lg:col-span-12 lg:grid-cols-4">
+            {specs.map(([h, p]) => (
+              <div key={h} className="pt-[22px]">
+                <h4 className="mb-2 text-[15px] font-semibold text-[#f1f1ee]">{h}</h4>
+                <p className="text-sm leading-relaxed text-[#a3a3a0]">{p}</p>
+              </div>
+            ))}
+          </div>
+        </Row>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 03 — Security                                                       */
+/* ------------------------------------------------------------------ */
+
+function Security() {
+  const code = (t: string) => <code className="font-mono text-[13px] text-ink">{t}</code>;
+  const rows: [string, ReactNode][] = [
+    ["Identity", <>A key pair, not an account. Sign in with a browser extension, a remote signer ({code("NIP-46")}) or a local key.</>],
+    ["Encryption", <>{code("NIP-44")}, performed on your device. Shared items are delivered with {code("NIP-59")} gift wraps.</>],
+    ["Data location", "Relays you choose. Run your own to keep data inside your network."],
+    ["Files", "Blossom servers you choose, public or self-hosted."],
+    ["Audit trail", "Every change is a signed event. Each one says which key, person or agent, made it."],
+    [
+      "Tracking",
+      <>
+        No analytics and no advertising.{" "}
+        <a href="/privacy-policy" className="underline underline-offset-4">
+          Privacy policy
+        </a>
+      </>,
+    ],
+  ];
+  return (
+    <section id="security">
+      <div className="sheet py-24 lg:py-[120px]">
+        <SectionHead
+          no="03 — Security"
+          title="Security you can check, not just trust."
+          lede="Encryption happens in your browser before anything is sent. Relays store ciphertext and signatures. They can't read your content, and neither can we. The code that does this is open for your security team to review."
+        />
+        <Row className="items-start">
+          <dl className="border-t border-ink lg:col-span-6">
+            {rows.map(([dt, dd]) => (
+              <div key={dt} className="grid gap-1 border-b border-line py-4 text-[15px] leading-normal sm:grid-cols-[150px_1fr] sm:gap-5">
+                <dt className="cap pt-[3px]">{dt}</dt>
+                <dd className="m-0 text-ink-2">{dd}</dd>
+              </div>
+            ))}
+          </dl>
+          <figure className="mt-12 lg:col-span-5 lg:col-start-8 lg:mt-0">
+            <div className="border border-line bg-sheet">
+              <div className="px-[22px] py-5">
+                <span className="cap">On the relay · kind 1069</span>
+                <pre className="mt-2.5 font-mono text-xs leading-[1.65] break-all whitespace-pre-wrap text-faint">
+                  "content": "AgT7x9Qd2Kf8mPz1rR4vN6wYbH3eL0cJs5Uo9aZqW1tE8yRbN2mKc4Vh7LpXs0dF3gJ6nQ9uY2iO5wT8rA1zC4vB7eH0kM3pS6…8B=="
+                </pre>
+              </div>
+              <div className="border-t border-dashed border-line bg-white px-[22px] py-5">
+                <span className="cap !text-ink">On the owner's device</span>
+                <div className="mt-3 grid gap-2.5 text-[13.5px]">
+                  <div>
+                    <span className="block text-xs text-mute">How was the visit?</span>Smooth
+                  </div>
+                  <div>
+                    <span className="block text-xs text-mute">What should we change?</span>Badge pickup took twenty
+                    minutes. Could the passes be ready the day before?
+                  </div>
+                </div>
               </div>
             </div>
-            <p className="mb-6 leading-relaxed text-gray-600">
-              Build surveys and collect responses without giving up your data.
-              Full data ownership, anonymous submissions, end-to-end encrypted
-              responses, AI-powered form generation, and export whenever you
-              want. The flagship of the suite.
+            <Figcap n={4}>A form response as stored and as read. Only the form owner's key turns one into the other.</Figcap>
+          </figure>
+        </Row>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 04 — Source                                                         */
+/* ------------------------------------------------------------------ */
+
+function Source() {
+  const cols = "grid grid-cols-[1fr_auto_20px] gap-6 sm:grid-cols-[2.2fr_3fr_0.8fr_1.2fr_20px]";
+  return (
+    <section id="source" className="border-t border-line">
+      <div className="sheet py-24 lg:py-[120px]">
+        <SectionHead
+          no="04 — Source"
+          title="Built in public, from the first commit."
+          lede="Every app is open source and developed in the open on GitHub. Read the code, file an issue or run it yourself."
+        />
+        <Row>
+          <div className="border-t border-ink lg:col-span-12">
+            <div className={`${cols} cap py-3`}>
+              <span>Repository</span>
+              <span className="hidden sm:block">What it is</span>
+              <span>Stars</span>
+              <span className="hidden sm:block">Last commit</span>
+              <span />
+            </div>
+            {repos.map((r) => {
+              const s = stats[r.name];
+              return (
+                <a
+                  key={r.name}
+                  href={`${GITHUB}/${r.name}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${cols} items-baseline border-t border-line py-[18px] text-[15px] transition-colors hover:bg-sheet`}
+                >
+                  <span className="flex items-baseline font-mono text-[14.5px]">
+                    <i className="mr-2.5 inline-block h-2 w-2 shrink-0 rounded-[2px]" style={{ background: r.color }} />
+                    {r.name}
+                  </span>
+                  <span className="hidden text-ink-2 sm:block">{r.what}</span>
+                  <span className="font-mono text-[13px] text-mute">{s ? s.stars : "—"}</span>
+                  <span className="hidden font-mono text-[13px] text-mute sm:block">{s ? fmtDate(s.pushedAt) : "—"}</span>
+                  <ArrowUpRight size={15} className="text-mute" />
+                </a>
+              );
+            })}
+          </div>
+        </Row>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Close + footer                                                      */
+/* ------------------------------------------------------------------ */
+
+function Close() {
+  return (
+    <section className="border-t border-line">
+      <div className="sheet pt-28 pb-20 lg:pt-[140px] lg:pb-24">
+        <Row>
+          <h2 className="text-[44px] font-semibold leading-none tracking-[-0.04em] sm:text-[60px] lg:col-span-9 lg:text-[72px]">
+            Bring Formstr to your organization.
+          </h2>
+          <div className="mt-10 flex flex-col gap-8 lg:col-span-12 lg:mt-12 lg:flex-row lg:items-end lg:justify-between">
+            <p className="max-w-[520px] text-[17px] leading-relaxed text-ink-2 lg:text-lg">
+              We'll walk your team through the architecture, the security model and running your own relays and
+              storage.
             </p>
-            <div>
-              <a
-                href="https://formstr.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-ink/85"
-              >
-                Open Formstr <ArrowUpRight size={16} />
+            <div className="flex flex-wrap gap-3">
+              <a href={CONTACT} className="inline-flex h-[42px] items-center rounded-[4px] bg-ink px-[18px] text-[14.5px] font-medium text-white">
+                hello@formstr.app
+              </a>
+              <a href="#suite" className="inline-flex h-[42px] items-center rounded-[4px] border border-ink px-[18px] text-[14.5px] font-medium">
+                Try the apps
               </a>
             </div>
           </div>
-          <div className="relative min-h-56 overflow-hidden border-t border-black/5 bg-paper md:border-l md:border-t-0">
-            <div className="flex items-center gap-1.5 bg-ink px-4 py-2.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-              <span className="h-2.5 w-2.5 rounded-full bg-amber" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/30" />
-              <UrlBar url="https://formstr.app/c" className="ml-2" />
-            </div>
-            <img
-              src="/images/previews/formstr.png"
-              alt="Formstr form builder"
-              className="h-full w-full object-cover object-top"
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((p, i) => (
-            <ProductCard key={p.name} product={p} index={i % 3} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Privacy() {
-  return (
-    <section id="privacy" className="border-t border-black/5 bg-ink text-white">
-      <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2 lg:py-24">
-        <div className="reveal reveal-left">
-          <p className="mb-3 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary-light">
-            <ShieldCheck size={16} /> Verifiable security
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Security you can verify.
-          </h2>
-          <p className="mt-5 text-lg leading-relaxed text-white/65">
-            You encrypt with keys only you hold. The relays that store your work
-            only ever see ciphertext — they couldn't read it if they tried, and
-            neither can we.
-          </p>
-          <p className="mt-4 text-lg leading-relaxed text-white/65">
-            And you can check it yourself: the encryption is open source and
-            runs on your device, so security here is something you prove, not
-            something you're promised.{" "}
-            <span className="font-semibold text-white">
-              The only kind of security that's actually real.
-            </span>
-          </p>
-        </div>
-
-        {/* what the relay sees vs what you see */}
-        <div className="reveal reveal-right space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-white/40">
-              <Lock size={14} /> What the relay stores
-            </p>
-            <pre className="overflow-hidden whitespace-pre-wrap break-all font-mono text-[12px] leading-relaxed text-white/35">
-{`kind: 30168
-content: "AgT7x9Qd2Kf8mPz1rR4vN6wYbH3eL0c
-Js5Uo9aZ...8B==" 🔒
-sig: 3a7f...e91`}
-            </pre>
-          </div>
-          <div className="flex items-center justify-center gap-2 text-xs font-semibold text-primary-light">
-            <KeyRound size={15} /> decrypts with your key ↓
-          </div>
-          <div className="rounded-2xl border border-primary/30 bg-primary/[0.07] p-5">
-            <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary-light">
-              <Check size={14} /> What you see
-            </p>
-            <div className="rounded-lg bg-white/95 p-4 text-ink">
-              <p className="text-sm font-bold">Team retro — Q2</p>
-              <p className="mt-1 text-xs text-gray-500">
-                What should we keep doing?
-              </p>
-              <div className="mt-2 rounded-md border border-black/10 bg-paper px-3 py-2 text-xs text-gray-600">
-                Shipping in the open every week.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function BuiltInOpen() {
-  const log = [
-    { tag: "Jun 2026", text: "Formstr Drive shipped → drive.formstr.app" },
-    { tag: "May 2026", text: "Calendar: recurring events + NIP-46 remote signing" },
-    { tag: "Apr 2026", text: "Pages: private, Notion-style notes on Nostr" },
-    { tag: "Mar 2026", text: "Formstr: AI-powered form generation" },
-  ];
-  return (
-    <section id="open" className="relative overflow-hidden border-t border-black/5 bg-grid">
-      <div className="absolute inset-0 bg-grid-lg" />
-      <div className="relative mx-auto grid max-w-6xl gap-12 px-6 py-20 lg:grid-cols-2 lg:py-24">
-        <div className="reveal reveal-left">
-          <p className="mb-3 text-sm font-bold uppercase tracking-widest text-primary">
-            Built in the open
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            Made by people, not a template.
-          </h2>
-          <p className="mt-5 text-lg leading-relaxed text-gray-600">
-            Every app here is open source and built in public. The code and the
-            issues are out in the open, with nothing hidden in a black box.
-            Read it, file a bug, fork it, or ship a PR.
-          </p>
-          <p className="mt-4 hand text-2xl text-primary">
-            your keys, your data, our open source.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <a
-              href="https://github.com/formstr-hq"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-ink/85"
-            >
-              <Github size={16} /> See it on GitHub
-            </a>
-            <span className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-gray-600">
-              <Scale size={16} className="text-primary" /> Every repo is MIT
-              licensed
-            </span>
-          </div>
-        </div>
-
-        <div className="reveal reveal-right rounded-2xl border border-black/10 bg-white p-2 shadow-sm">
-          <div className="flex items-center gap-1.5 px-3 py-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-            <span className="h-2.5 w-2.5 rounded-full bg-amber" />
-            <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
-            <span className="ml-2 font-mono text-xs text-gray-400">
-              build-log
-            </span>
-          </div>
-          <ul className="divide-y divide-black/5">
-            {log.map((l) => (
-              <li key={l.tag} className="flex items-start gap-3 px-3 py-3.5">
-                <span className="mt-0.5 inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-gray-400">
-                  <Check size={14} className="text-emerald-500" />
-                  {l.tag}
-                </span>
-                <span className="text-sm text-ink">{l.text}</span>
-              </li>
-            ))}
-            <li className="flex items-center gap-3 px-3 py-3.5">
-              <span className="font-mono text-xs font-semibold text-gray-400">
-                next
-              </span>
-              <span className="text-sm text-gray-400">
-                Formstr Relay &amp; Blossom Server — in progress
-              </span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Principles() {
-  return (
-    <section className="border-t border-black/5">
-      <div className="mx-auto max-w-6xl px-6 py-20">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {principles.map((p, i) => (
-            <div key={p.title} className="reveal" style={rv(i)}>
-              <p.icon size={26} className="mb-3 text-primary" strokeWidth={1.6} />
-              <h3 className="mb-1.5 font-bold text-ink">{p.title}</h3>
-              <p className="text-sm leading-relaxed text-gray-500">
-                {p.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Nostr() {
-  return (
-    <section id="nostr" className="border-t border-black/5 bg-paper">
-      <div className="reveal mx-auto max-w-2xl px-6 py-20 text-center">
-        <Asterisk className="mx-auto mb-6 h-12 w-12" />
-        <h2 className="text-3xl font-bold tracking-tight text-ink">
-          Built on Nostr
-        </h2>
-        <p className="mt-4 leading-relaxed text-gray-600">
-          Nostr is a simple, open protocol for censorship-resistant,
-          decentralized communication. Your identity is a key pair. Your data
-          lives on relays you choose. No company controls your account or your
-          content — which is exactly why we build on it.
-        </p>
-        <a
-          href="https://nostr.org"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary-light"
-        >
-          Learn about Nostr <ArrowRight size={16} />
-        </a>
+        </Row>
       </div>
     </section>
   );
 }
 
 export function Footer() {
+  const links = [
+    ["GitHub", GITHUB],
+    ["npm", NPM_MCP],
+    ["Nostr", "https://nostr.org"],
+    ["Privacy", "/privacy-policy"],
+    ["llms.txt", "/llms.txt"],
+  ];
   return (
-    <footer className="border-t border-black/10 bg-ink text-white">
-      <div className="mx-auto max-w-6xl px-6 py-12">
-        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-3">
-            <Asterisk className="h-9 w-9" />
-            <div>
-              <p className="font-mono text-lg font-bold italic">form*</p>
-              <p className="text-sm text-white/50">Free it, don't cage it.</p>
-            </div>
+    <footer className="border-t border-line">
+      <div className="sheet">
+        <Row className="items-center gap-y-4 py-6 text-[13px] text-mute lg:h-[72px] lg:py-0">
+          <div className="flex items-center gap-3.5 lg:col-span-6">
+            <img src="/images/formstr/formstr-logo.svg" alt="Formstr" className="h-[22px]" />
+            <span>Open-source work tools on Nostr.</span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/60">
-            <a
-              href="mailto:hello@formstr.app"
-              className="transition-colors hover:text-white"
-            >
-              hello@formstr.app
-            </a>
-            <a
-              href="https://github.com/formstr-hq"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="transition-colors hover:text-white"
-            >
-              GitHub
-            </a>
-            <a
-              href="https://nostr.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="transition-colors hover:text-white"
-            >
-              Nostr
-            </a>
-            <a
-              href="/privacy-policy"
-              className="transition-colors hover:text-white"
-            >
-              Privacy Policy
-            </a>
+          <div className="flex gap-6 lg:col-span-6 lg:justify-self-end">
+            {links.map(([label, href]) => (
+              <a
+                key={label}
+                href={href}
+                {...(href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className="transition-colors hover:text-ink"
+              >
+                {label}
+              </a>
+            ))}
           </div>
-        </div>
-        <p className="mt-8 border-t border-white/10 pt-6 text-xs text-white/40">
-          Decentralized tools on Nostr. Your keys, your data, your work.
-        </p>
+        </Row>
       </div>
     </footer>
   );
@@ -1262,27 +1097,32 @@ export function Footer() {
 /* ------------------------------------------------------------------ */
 
 function Home() {
-  useScrollFx();
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <div className="scroll-progress" aria-hidden="true" />
+    <div className="min-h-screen">
       <Navbar />
-      <Hero />
-      <Thesis />
-      <Suite />
-      <Privacy />
-      <BuiltInOpen />
-      <Principles />
-      <Nostr />
+      <main>
+        <Hero />
+        <Suite />
+        <Agents />
+        <Security />
+        <Source />
+        <Close />
+      </main>
       <Footer />
     </div>
   );
 }
 
-function App({ url }: { url?: string }) {
-  const path =
-    url ?? (typeof window !== "undefined" ? window.location.pathname : "/");
-  if (path === "/privacy-policy") return <PrivacyPolicy />;
+function App({ url, PrivacyPolicy = LazyPrivacyPolicy }: { url?: string; PrivacyPolicy?: ComponentType }) {
+  const raw = url ?? (typeof window !== "undefined" ? window.location.pathname : "/");
+  // "/privacy-policy/" and "/privacy-policy" are the same page.
+  const path = raw.replace(/\/+$/, "") || "/";
+  if (path === "/privacy-policy")
+    return (
+      <Suspense fallback={null}>
+        <PrivacyPolicy />
+      </Suspense>
+    );
   return <Home />;
 }
 
