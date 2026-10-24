@@ -55,169 +55,208 @@ section[id] {
   scroll-margin-top: 60px;
 }
 
-/* ---- the sheet: a centred page with hairline margins ---- */
-.sheet {
-  max-width: 1280px;
-  margin-inline: auto;
-}
-@media (min-width: 1024px) {
+/* Page components live in Tailwind's components layer so utilities can
+   override them (e.g. `cap normal-case` for a lowercase npub). */
+@layer components {
+  /* ---- the sheet: a centred page with hairline margins ---- */
   .sheet {
-    border-inline: 1px solid var(--color-line);
+    max-width: 1280px;
+    margin-inline: auto;
   }
-  .night .sheet {
-    border-color: #1c1c1c;
+  @media (min-width: 1024px) {
+    .sheet {
+      border-inline: 1px solid var(--color-line);
+    }
+    .night .sheet {
+      border-color: #1c1c1c;
+    }
   }
-}
 
-/* Small mono caption, the page's labelling voice. */
-.cap {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-mute);
-}
-.night .cap {
-  color: var(--color-night-mute);
-}
+  /* Small mono caption, the page's labelling voice. */
+  .cap {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-mute);
+  }
+  .night .cap {
+    color: var(--color-night-mute);
+  }
 
-/* ---- figures ---- */
-.figcap {
-  display: flex;
-  gap: 16px;
-  padding-top: 14px;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--color-mute);
-}
-.figcap b {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: 11.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-ink);
-  white-space: nowrap;
-  padding-top: 2px;
-}
-.night .figcap {
-  color: var(--color-night-mute);
-}
-.night .figcap b {
-  color: var(--color-night-text);
-}
+  /* ---- figures ---- */
+  .figcap {
+    display: flex;
+    gap: 16px;
+    padding-top: 14px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--color-mute);
+  }
+  .figcap b {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+    white-space: nowrap;
+    padding-top: 2px;
+  }
+  .night .figcap {
+    color: var(--color-night-mute);
+  }
+  .night .figcap b {
+    color: var(--color-night-text);
+  }
 
-/* Product window chrome used by every plate. */
-.win {
-  background: #fff;
-  border: 1px solid var(--color-line-2);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow:
-    0 1px 0 rgb(0 0 0 / 0.03),
-    0 20px 40px -24px rgb(0 0 0 / 0.18);
-}
+  /* Product window chrome used by every plate. */
+  .win {
+    background: #fff;
+    border: 1px solid var(--color-line-2);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow:
+      0 1px 0 rgb(0 0 0 / 0.03),
+      0 20px 40px -24px rgb(0 0 0 / 0.18);
+  }
 
-/* ---- Fig. 1: the event listing ---- */
-.ev {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.72;
-  color: #c9c9c5;
-  white-space: pre;
-  overflow-x: auto;
-}
-.ev .k { color: #8d8d89; }
-.ev .s { color: #f1f1ee; }
-.ev .num { color: #ffb38a; }
-.ev .hl {
-  background: rgb(247 107 21 / 0.16);
-  box-shadow: inset 2px 0 0 var(--color-forms);
-}
+  /* ---- Fig. 1: the event listing ---- */
+  .ev {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.72;
+    color: #c9c9c5;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .ev .k { color: #8d8d89; }
+  .ev .s { color: #f1f1ee; }
+  .ev .num { color: #ffb38a; }
+  .ev .hl {
+    background: rgb(247 107 21 / 0.16);
+    box-shadow: inset 2px 0 0 var(--color-forms);
+  }
 
-/* Numbered marker tying a form field to its tag. */
-.marker {
-  display: inline-grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--color-forms);
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 1;
-}
+  /* Numbered marker tying a form field to its tag. */
+  .marker {
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-forms);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+  }
 
-/* Radio options in the form vignette. */
-.opt::before {
-  content: "";
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-faint);
-  box-sizing: border-box;
-}
-.opt[data-on]::before {
-  border: 4px solid var(--color-forms);
-}
+  /* Radio options in the form vignette. */
+  .opt::before {
+    content: "";
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-faint);
+    box-sizing: border-box;
+  }
+  .opt[data-on]::before {
+    border: 4px solid var(--color-forms);
+  }
 
-/* ---- Pages vignette: live cursors ---- */
-.caret {
-  position: relative;
-  display: inline-block;
-  width: 2px;
-  height: 1.15em;
-  vertical-align: -3px;
-  background: var(--c);
-}
-.caret b {
-  position: absolute;
-  bottom: 100%;
-  left: -1px;
-  background: var(--c);
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  padding: 1px 5px;
-  border-radius: 2px 2px 2px 0;
-  white-space: nowrap;
-}
+  /* ---- Pages vignette: live cursors ---- */
+  .caret {
+    position: relative;
+    display: inline-block;
+    width: 2px;
+    height: 1.15em;
+    vertical-align: -3px;
+    background: var(--c);
+  }
+  .caret b {
+    position: absolute;
+    bottom: 100%;
+    left: -1px;
+    background: var(--c);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 2px 2px 2px 0;
+    white-space: nowrap;
+  }
 
-/* ---- Drive vignette: file glyph ---- */
-.ficon {
-  position: relative;
-  display: inline-block;
-  flex: none;
-  width: 22px;
-  height: 26px;
-  border-radius: 3px;
-  background: var(--c);
-}
-.ficon::after {
-  content: attr(data-x);
-  position: absolute;
-  inset: auto 0 3px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 7px;
-  font-weight: 600;
-  color: #fff;
-}
+  /* ---- Drive vignette: file glyph ---- */
+  .ficon {
+    position: relative;
+    display: inline-block;
+    flex: none;
+    width: 22px;
+    height: 26px;
+    border-radius: 3px;
+    background: var(--c);
+  }
+  .ficon::after {
+    content: attr(data-x);
+    position: absolute;
+    inset: auto 0 3px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 7px;
+    font-weight: 600;
+    color: #fff;
+  }
 
-/* ---- Agents: robot stage ---- */
-.stage {
-  background:
-    radial-gradient(ellipse at 50% 85%, #1d1d1c 0, transparent 60%),
-    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 40px 40px,
-    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 40px 40px,
-    #0f0f10;
+  /* ---- Agents: robot stage ---- */
+  .stage {
+    background:
+      radial-gradient(ellipse at 50% 85%, #1d1d1c 0, transparent 60%),
+      linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 40px 40px,
+      linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 40px 40px,
+      #0f0f10;
+  }
+
+  /* ---- Agents: the robot's thought bubble ----
+     The tail dots pop in first, then the bubble, so it reads as a thought
+     forming rather than a tooltip appearing. */
+  .thought-dot,
+  .thought-body {
+    animation: thought-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  @keyframes thought-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.92);
+    }
+  }
+
+  /* ---- Storage: the encrypted packet travelling device → host ---- */
+  .packet {
+    animation: packet-travel 0.9s cubic-bezier(0.5, 0, 0.2, 1) both;
+  }
+  @keyframes packet-travel {
+    from {
+      left: 0;
+    }
+    to {
+      left: calc(100% - 1.5rem);
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .packet {
+    animation: none;
+    left: calc(100% - 1.5rem);
+  }
+  .thought-dot,
+  .thought-body {
+    animation: none;
   }
 }

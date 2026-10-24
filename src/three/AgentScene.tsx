@@ -48,7 +48,7 @@ function ContactShadow() {
   );
 }
 
-function Robot({ pointer }: { pointer: { current: { x: number; y: number } } }) {
+function Robot({ attention }: { attention: Attention }) {
   const group = useRef<THREE.Group>(null);
   const { scene, animations } = useGLTF(MODEL_URL);
   const { actions, mixer } = useAnimations(animations, group);
@@ -67,17 +67,18 @@ function Robot({ pointer }: { pointer: { current: { x: number; y: number } } }) 
     });
   }, [scene]);
 
-  // Wave hello once, then settle into idle.
+  // Wave hello (twice, a touch slower than the clip, so it isn't missed on a
+  // quick scroll), then settle into idle.
+  //
+  // It starts on the first frame actually drawn, not on mount: the scene is
+  // mounted just before it scrolls into view but doesn't render until it's
+  // on screen, and the first frame's delta covers that whole wait. Started on
+  // mount, the mixer would fast-forward through the wave in one step.
+  const greeted = useRef(false);
   useEffect(() => {
     const wave = actions.Wave;
     const idle = actions.Idle;
     if (!wave || !idle) return;
-    wave.reset().setLoop(THREE.LoopOnce, 1);
-    // Hold the last wave frame until idle fades in (otherwise the arm snaps
-    // down for a frame). three.js only exposes this as a mutable property.
-    // eslint-disable-next-line react-hooks/immutability
-    wave.clampWhenFinished = true;
-    wave.play();
     const onDone = () => {
       idle.reset().fadeIn(0.4).play();
       wave.fadeOut(0.4);
@@ -85,44 +86,114 @@ function Robot({ pointer }: { pointer: { current: { x: number; y: number } } }) 
     mixer.addEventListener("finished", onDone);
     return () => mixer.removeEventListener("finished", onDone);
   }, [actions, mixer]);
-
-  // The head turns toward the cursor, clamped so it never looks backwards.
   useFrame(() => {
+    const wave = actions.Wave;
+    if (greeted.current || !wave) return;
+    greeted.current = true;
+    wave.reset().setLoop(THREE.LoopRepeat, 2).setEffectiveTimeScale(0.85);
+    // Hold the last wave frame until idle fades in (otherwise the arm snaps
+    // down for a frame). three.js only exposes this as a mutable property.
+    // eslint-disable-next-line react-hooks/immutability
+    wave.clampWhenFinished = true;
+    wave.play();
+  });
+
+  // Aim the head at whatever has its attention, as a small turn layered on
+  // top of the Idle clip (which glances around on its own).
+  //
+  // three.js only writes an animated bone while the clip's value is changing,
+  // and Idle holds the head still for long stretches. So the head's current
+  // rotation is either a fresh pose from the clip, or exactly what we wrote
+  // last frame. Re-basing only on a fresh pose keeps the aim from stacking up
+  // frame after frame (stacking it is what made the head spin).
+  const aim = useRef({ yaw: 0, pitch: 0 });
+  const pose = useRef({
+    base: new THREE.Quaternion(),
+    written: new THREE.Quaternion(),
+    turn: new THREE.Quaternion(),
+    euler: new THREE.Euler(0, 0, 0, "YXZ"),
+    wrote: false,
+  });
+  useFrame((_, delta) => {
     const h = head.current;
     if (!h) return;
-    const { x, y } = pointer.current;
-    h.rotation.y = THREE.MathUtils.lerp(h.rotation.y, THREE.MathUtils.clamp(x, -1, 1) * 0.55, 0.08);
-    h.rotation.x = THREE.MathUtils.lerp(h.rotation.x, THREE.MathUtils.clamp(-y, -1, 1) * 0.25, 0.08);
+    const { x, y } = attention.target();
+    const a = aim.current;
+    // Time-based damping: equally smooth at 60 Hz and 120 Hz.
+    a.yaw = THREE.MathUtils.damp(a.yaw, THREE.MathUtils.clamp(x, -1, 1) * MAX_YAW, 5, delta);
+    a.pitch = THREE.MathUtils.damp(a.pitch, THREE.MathUtils.clamp(-y, -1, 1) * MAX_PITCH, 5, delta);
+
+    const p = pose.current;
+    if (!p.wrote || !h.quaternion.equals(p.written)) p.base.copy(h.quaternion);
+    p.turn.setFromEuler(p.euler.set(a.pitch, a.yaw, 0));
+    h.quaternion.copy(p.base).multiply(p.turn);
+    p.written.copy(h.quaternion);
+    p.wrote = true;
   });
 
   return <primitive ref={group} object={scene} scale={0.5} position={[0, -1.2, 0]} rotation={[0, -0.35, 0]} />;
 }
 
+/** A point in the figure's own space: -1…1 left→right, -1…1 bottom→top. */
+export type Point = { x: number; y: number };
+
+/* What the robot is looking at: you, for a few seconds after you move the
+   mouse or tap; otherwise whatever the page points it at (its thought). */
+type Attention = { target: () => Point };
+
+const WATCH_YOU_MS = 2500;
+/* How far the head may turn toward its target: a glance, not a spin. */
+const MAX_YAW = 0.55; // ≈ 30° left/right
+const MAX_PITCH = 0.18; // ≈ 10° up/down
+
 export default function AgentScene({
   active,
+  gaze,
   onReady,
   onLost,
 }: {
   active: boolean;
+  /** Where to look when you're not interacting (the current thought bubble). */
+  gaze: { current: Point | null };
   onReady: () => void;
   /** The WebGL context died (GPU reset, driver crash…): the figure falls back to its still. */
   onLost: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const pointer = useRef({ x: 0, y: 0 });
+  const you = useRef<Point & { at: number }>({ x: 0, y: 0, at: -Infinity });
 
-  // Track the cursor relative to the figure, so the robot looks at it from
-  // anywhere on the page.
+  // Follow the mouse anywhere on the page, and on touch screens the last tap.
+  // Touch moves are scrolls, not pointing, so they're ignored (following them
+  // made the head jerk around as the page scrolled).
   useEffect(() => {
-    const onMove = (e: PointerEvent) => {
+    const look = (e: PointerEvent) => {
+      if (e.type === "pointermove" && e.pointerType === "touch") return;
       const r = host.current?.getBoundingClientRect();
       if (!r) return;
-      pointer.current.x = ((e.clientX - r.left) / r.width) * 2 - 1;
-      pointer.current.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+      you.current = {
+        x: ((e.clientX - r.left) / r.width) * 2 - 1,
+        y: -((e.clientY - r.top) / r.height) * 2 + 1,
+        at: performance.now(),
+      };
     };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", look, { passive: true });
+    window.addEventListener("pointerdown", look, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", look);
+      window.removeEventListener("pointerdown", look);
+    };
   }, []);
+
+  const attention = useMemo<Attention>(
+    () => ({
+      target: () => {
+        const y = you.current;
+        if (performance.now() - y.at < WATCH_YOU_MS || !gaze.current) return y;
+        return gaze.current;
+      },
+    }),
+    [gaze],
+  );
 
   return (
     <div ref={host} className="absolute inset-0">
@@ -141,7 +212,7 @@ export default function AgentScene({
         <directionalLight position={[-3, 5, 4]} intensity={2.2} />
         <directionalLight position={[4, 3, -4]} intensity={1.4} />
         <ContactShadow />
-        <Robot pointer={pointer} />
+        <Robot attention={attention} />
       </Canvas>
     </div>
   );

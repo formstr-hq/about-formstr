@@ -24,6 +24,10 @@ Creating things is on by default. Editing, deleting, sharing, submitting and sen
 - [@formstr/mcp README](https://github.com/formstr-hq/common-packages/tree/main/packages/mcp): Operator setup. Keystore, headless and unattended use, environment variables, local models via Goose and Ollama.
 - [@formstr/mcp on npm](https://www.npmjs.com/package/@formstr/mcp): The package. Run it with `npx -y @formstr/mcp`.
 
+## Where data lives
+
+By default every app stores events on the Formstr Relay (wss://relay.formstr.app) plus a configurable set of public relays (e.g. wss://relay.damus.io, wss://relay.primal.net, wss://nos.lol). Users can change the list in any app, run their own relay (self-hosted), or keep data on their device only. Content is encrypted on the device before it's sent (NIP-44), so relays, including Formstr's, store only ciphertext and signatures.
+
 ## Apps
 
 - [Formstr](https://formstr.app): Forms and surveys with end-to-end encrypted responses. Event kinds: 30168 (form), 1069 (response).

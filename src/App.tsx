@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
+import type { Point } from "./three/AgentScene";
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { ArrowDown, ArrowUpRight, Check, ChevronDown, Copy, Lock } from "lucide-react";
 import "./index.css";
@@ -30,6 +31,16 @@ const apps = [
   { name: "Drive", what: "Files", url: "https://drive.formstr.app", color: "var(--color-drive)" },
   { name: "Mailstr", what: "Email", url: "https://mailstr.app", color: "var(--color-mail)" },
 ];
+
+/* What the agent offers to do, one thought at a time (Fig. 2). Each opens its app. */
+const thoughts = [
+  { text: "Draft a survey?", app: "Formstr", url: "https://formstr.app", color: "var(--color-forms)" },
+  { text: "Manage your calendar?", app: "Calendar", url: "https://calendar.formstr.app", color: "var(--color-cal)" },
+  { text: "Note down your thoughts?", app: "Pages", url: "https://pages.formstr.app", color: "var(--color-pages)" },
+  { text: "Stash a file?", app: "Drive", url: "https://drive.formstr.app", color: "var(--color-drive)" },
+  { text: "Sort your inbox?", app: "Mailstr", url: "https://mailstr.app", color: "var(--color-mail)" },
+];
+const THOUGHT_MS = 3800;
 
 /* Repos shown in the Source section. Stars and dates come from
    src/data/repos.json, refreshed at build time by scripts/fetch-repos.mjs. */
@@ -198,8 +209,9 @@ export function Navbar() {
   const links = [
     ["01", "Suite", "/#suite"],
     ["02", "Agents", "/#agents"],
-    ["03", "Security", "/#security"],
-    ["04", "Source", "/#source"],
+    ["03", "Storage", "/#storage"],
+    ["04", "Security", "/#security"],
+    ["05", "Source", "/#source"],
   ];
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur-md">
@@ -360,8 +372,8 @@ function Hero() {
                 =
               </span>
               <div className="mb-[22px] flex justify-between gap-4">
-                <span className="cap !text-night-mute">What an agent reads</span>
-                <span className="cap !text-night-mute">kind 30168 · signed</span>
+                <span className="cap text-night-mute">What an agent reads</span>
+                <span className="cap text-night-mute">kind 30168 · signed</span>
               </div>
               <EventListing />
             </div>
@@ -703,12 +715,39 @@ function canRender3D() {
 function AgentFigure() {
   const stage = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
+  const bubble = useRef<HTMLAnchorElement>(null);
+  // Where the robot looks when you're not interacting: its current thought.
+  const gaze = useRef<Point | null>(null);
   const [live, setLive] = useState(false);
+  const [onScreen, setOnScreen] = useState(false);
+  const [thought, setThought] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  // Think the next thought every few seconds, while the figure is on screen
+  // and not being hovered or focused (so a bubble never changes under the
+  // pointer). Reduced motion keeps the first thought still.
+  useEffect(() => {
+    if (!onScreen || paused || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(() => setThought((t) => (t + 1) % thoughts.length), THOUGHT_MS);
+    return () => clearInterval(id);
+  }, [onScreen, paused]);
+
+  // Point the robot's gaze at the bubble's tail, just above its head.
+  useEffect(() => {
+    const s = stage.current?.getBoundingClientRect();
+    const b = bubble.current?.getBoundingClientRect();
+    if (!s || !b) return;
+    gaze.current = {
+      x: ((b.left + b.width * 0.15 - s.left) / s.width) * 2 - 1,
+      y: -((b.bottom - s.top) / s.height) * 2 + 1,
+    };
+  }, [thought]);
 
   useEffect(() => {
     const el = stage.current;
     const mountEl = host.current;
-    if (!el || !mountEl || typeof IntersectionObserver === "undefined" || !canRender3D()) return;
+    if (!el || !mountEl || typeof IntersectionObserver === "undefined") return;
+    const can3D = canRender3D();
 
     let root: Root | null = null;
     let render: ((active: boolean) => void) | null = null;
@@ -724,14 +763,16 @@ function AgentFigure() {
 
     const near = new IntersectionObserver(
       ([e]) => {
-        if (!e.isIntersecting) return;
+        if (!e.isIntersecting || !can3D) return;
         near.disconnect();
         import("./three/AgentScene")
           .then(({ default: AgentScene }) => {
             if (stopped) return;
             root = createRoot(mountEl);
             render = (active) =>
-              root!.render(<AgentScene active={active} onReady={() => setLive(true)} onLost={stop} />);
+              root!.render(
+                <AgentScene active={active} gaze={gaze} onReady={() => setLive(true)} onLost={stop} />,
+              );
             render(visible);
           })
           .catch(() => {
@@ -741,16 +782,17 @@ function AgentFigure() {
       { rootMargin: "400px" },
     );
     // Only animate while the figure is on screen.
-    const onScreen = new IntersectionObserver(([e]) => {
+    const watch = new IntersectionObserver(([e]) => {
       visible = e.isIntersecting;
+      setOnScreen(visible);
       if (!stopped) render?.(visible);
     });
     near.observe(el);
-    onScreen.observe(el);
+    watch.observe(el);
     return () => {
       stopped = true;
       near.disconnect();
-      onScreen.disconnect();
+      watch.disconnect();
       root?.unmount();
     };
   }, []);
@@ -778,6 +820,32 @@ function AgentFigure() {
           aria-hidden="true"
           className={`absolute inset-0 transition-opacity duration-500 ${live ? "opacity-100" : "opacity-0"}`}
         />
+        {/* The thought: a link to the app it offers to use. Re-keyed per
+            thought so it re-plays its entrance. */}
+        <a
+          ref={bubble}
+          key={thought}
+          href={thoughts[thought].url}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-thought={thoughts[thought].app}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocus={() => setPaused(true)}
+          onBlur={() => setPaused(false)}
+          className="thought group absolute top-[4%] left-[38%] z-10 max-w-[60%] sm:top-[13%] sm:left-[40%] sm:max-w-[56%]"
+        >
+          <span className="thought-dot absolute -bottom-[14px] left-[12%] h-[11px] w-[11px] rounded-full bg-white" />
+          <span className="thought-dot absolute -bottom-[27px] left-[5%] h-[7px] w-[7px] rounded-full bg-white [animation-delay:60ms]" />
+          <span className="thought-body block rounded-[16px] bg-white px-4 pt-2.5 pb-2 text-ink shadow-[0_10px_30px_-10px_rgb(0_0_0/0.6)] [animation-delay:120ms]">
+            <span className="block text-[15px] leading-snug font-medium">{thoughts[thought].text}</span>
+            <span className="mt-1 flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.06em] text-mute uppercase">
+              <i className="h-1.5 w-1.5 rounded-full" style={{ background: thoughts[thought].color }} />
+              Open {thoughts[thought].app}
+              <ArrowUpRight size={11} className="transition-transform group-hover:translate-x-px group-hover:-translate-y-px" />
+            </span>
+          </span>
+        </a>
         <span className="cap absolute bottom-3.5 left-4">Your agent</span>
         <span className="cap absolute right-4 bottom-3.5 normal-case">npub1ag3…k9qz</span>
       </div>
@@ -908,7 +976,179 @@ function Agents() {
 }
 
 /* ------------------------------------------------------------------ */
-/* 03 — Security                                                       */
+/* 03 — Storage                                                        */
+/* ------------------------------------------------------------------ */
+
+/* Where data can live, ordered by how much of it you run yourself. Every
+   option stores the same thing (ciphertext and a signature), which is the
+   point the figure makes: pick any, the last row never changes. */
+type StorageChoice = {
+  id: string;
+  name: string;
+  line: string;
+  dest: string; // what the destination box shows
+  host: string;
+  where: string;
+  sent: boolean; // does anything leave the device?
+};
+const storageChoices: StorageChoice[] = [
+  {
+    id: "device",
+    name: "On this device",
+    line: "Nothing is published. Your work stays in the browser's local store.",
+    dest: "Nothing sent",
+    host: "You",
+    where: "This device",
+    sent: false,
+  },
+  {
+    id: "self",
+    name: "Your own relay",
+    line: "Run a relay on your own servers: your network, your jurisdiction, your retention rules.",
+    dest: "relay.yourco.internal",
+    host: "You",
+    where: "Your infrastructure",
+    sent: true,
+  },
+  {
+    id: "public",
+    name: "Relays you choose",
+    line: "Any Nostr relays you trust, mixed and matched, for redundancy.",
+    dest: "relay.damus.io · nos.lol · …",
+    host: "Operators you pick",
+    where: "Wherever they run",
+    sent: true,
+  },
+  {
+    id: "formstr",
+    name: "Formstr Relay",
+    line: "We host it, if you'd rather not run anything yourself.",
+    dest: "relay.formstr.app",
+    host: "Formstr",
+    where: "Formstr infrastructure",
+    sent: true,
+  },
+];
+
+function Storage() {
+  const [pick, setPick] = useState("self");
+  const c = storageChoices.find((s) => s.id === pick)!;
+  const rows: [string, ReactNode][] = [
+    ["Hosted by", c.host],
+    ["Lives in", c.where],
+    ["Leaves your device", c.sent ? "Encrypted" : "No"],
+    // The constant: whichever option you pick, this row never changes.
+    ["Who can read it", <b key="r">Only you, and people you share with</b>],
+  ];
+  return (
+    <section id="storage" className="border-t border-line">
+      <div className="sheet py-24 lg:py-[120px]">
+        <SectionHead
+          no="03 — Storage"
+          title="Hosted or self-hosted. Encrypted either way."
+          lede="You decide where your work lives: on your device, on a relay you run, on relays you pick, or on ours. Whichever you choose, it's encrypted on your device first, so the host only ever stores ciphertext."
+        />
+        <Row className="items-stretch">
+          <figure className="lg:col-span-12">
+            <div className="grid border border-line bg-sheet lg:grid-cols-12">
+              {/* The choice */}
+              <fieldset className="border-b border-line p-6 lg:col-span-5 lg:border-r lg:border-b-0 lg:p-8">
+                <legend className="cap float-left mb-5 w-full">Where should your work live?</legend>
+                <div className="clear-both grid gap-2">
+                  {storageChoices.map((s) => (
+                    <label
+                      key={s.id}
+                      className="group relative block cursor-pointer rounded-[6px] border border-line bg-white px-4 py-3.5 transition-colors hover:border-faint has-[:checked]:border-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+                    >
+                      <input
+                        type="radio"
+                        name="storage"
+                        value={s.id}
+                        checked={pick === s.id}
+                        onChange={() => setPick(s.id)}
+                        className="peer sr-only"
+                      />
+                      <span className="flex items-center gap-3">
+                        <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border-[1.5px] border-faint peer-checked:border-ink group-has-[:checked]:border-ink">
+                          <span className="h-2 w-2 scale-0 rounded-full bg-ink transition-transform group-has-[:checked]:scale-100" />
+                        </span>
+                        <span className="text-[15px] font-semibold">{s.name}</span>
+                      </span>
+                      <span className="mt-1 block pl-7 text-[13.5px] leading-snug text-mute">{s.line}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-5 text-[13px] leading-relaxed text-mute">
+                  New accounts start with a default list, the Formstr Relay plus public relays. Change it in any app's
+                  settings.
+                </p>
+              </fieldset>
+
+              {/* What happens */}
+              <div className="flex flex-col p-6 lg:col-span-7 lg:p-8" aria-live="polite">
+                <div className="grid items-center gap-2 sm:grid-cols-[1fr_auto_1fr] sm:gap-4">
+                  <div className="rounded-[6px] border border-line bg-white p-4">
+                    <span className="cap">Your device</span>
+                    <p className="mt-2 flex items-center gap-2 text-[14px] font-medium">
+                      <Lock size={14} /> Encrypts with your key
+                    </p>
+                  </div>
+                  {/* On phones the diagram runs top to bottom: a short connector. */}
+                  <div className="flex h-8 justify-center sm:hidden" aria-hidden="true">
+                    <span className={`border-l ${c.sent ? "border-ink" : "border-dashed border-faint"}`} />
+                  </div>
+                  {/* The wire. Re-keyed per choice so the packet travels again. */}
+                  <div key={c.id} className="relative hidden h-6 w-24 sm:block" aria-hidden="true">
+                    <span
+                      className={`absolute top-1/2 right-0 left-0 border-t ${
+                        c.sent ? "border-ink" : "border-dashed border-faint"
+                      }`}
+                    />
+                    {c.sent && (
+                      <span className="packet absolute top-1/2 left-0 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-ink text-white">
+                        <Lock size={11} />
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className={`rounded-[6px] border p-4 transition-colors ${
+                      c.sent ? "border-ink bg-white" : "border-dashed border-faint"
+                    }`}
+                  >
+                    <span className="cap">{c.sent ? "Stored on" : "Network"}</span>
+                    <p className="mt-2 truncate font-mono text-[13px]">{c.dest}</p>
+                  </div>
+                </div>
+
+                <dl className="mt-8 border-t border-ink">
+                  {rows.map(([dt, dd]) => (
+                    <div key={dt} className="grid grid-cols-[auto_1fr] gap-4 border-b border-line py-3 text-[14.5px]">
+                      <dt className="cap pt-0.5">{dt}</dt>
+                      <dd className="m-0 text-right">{dd}</dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <div className="mt-6 rounded-[6px] bg-night p-4 font-mono text-[12px] leading-relaxed break-all text-night-mute lg:mt-auto">
+                  <span className="text-night-text">{c.sent ? `On ${c.dest.split(" ")[0]}:` : "In the local store:"}</span>
+                  <br />
+                  "content": "AgT7x9Qd2Kf8mPz1rR4vN6wYbH3eL0cJs5Uo9aZ…8B=="
+                </div>
+              </div>
+            </div>
+            <Figcap n={4}>
+              Pick any option: what gets stored is the same ciphertext, readable only with your key. You can mix
+              options, too, such as your own relay plus a public one for redundancy.
+            </Figcap>
+          </figure>
+        </Row>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 04 — Security                                                       */
 /* ------------------------------------------------------------------ */
 
 function Security() {
@@ -916,7 +1156,16 @@ function Security() {
   const rows: [string, ReactNode][] = [
     ["Identity", <>A key pair, not an account. Sign in with a browser extension, a remote signer ({code("NIP-46")}) or a local key.</>],
     ["Encryption", <>{code("NIP-44")}, performed on your device. Shared items are delivered with {code("NIP-59")} gift wraps.</>],
-    ["Data location", "Relays you choose. Run your own to keep data inside your network."],
+    [
+      "Data location",
+      <>
+        Hosted, self-hosted or on your device. See{" "}
+        <a href="#storage" className="underline underline-offset-4">
+          Storage
+        </a>
+        .
+      </>,
+    ],
     ["Files", "Blossom servers you choose, public or self-hosted."],
     ["Audit trail", "Every change is a signed event. Each one says which key, person or agent, made it."],
     [
@@ -933,7 +1182,7 @@ function Security() {
     <section id="security">
       <div className="sheet py-24 lg:py-[120px]">
         <SectionHead
-          no="03 — Security"
+          no="04 — Security"
           title="Security you can check, not just trust."
           lede="Encryption happens in your browser before anything is sent. Relays store ciphertext and signatures. They can't read your content, and neither can we. The code that does this is open for your security team to review."
         />
@@ -955,7 +1204,7 @@ function Security() {
                 </pre>
               </div>
               <div className="border-t border-dashed border-line bg-white px-[22px] py-5">
-                <span className="cap !text-ink">On the owner's device</span>
+                <span className="cap text-ink">On the owner's device</span>
                 <div className="mt-3 grid gap-2.5 text-[13.5px]">
                   <div>
                     <span className="block text-xs text-mute">How was the visit?</span>Smooth
@@ -967,7 +1216,7 @@ function Security() {
                 </div>
               </div>
             </div>
-            <Figcap n={4}>A form response as stored and as read. Only the form owner's key turns one into the other.</Figcap>
+            <Figcap n={5}>A form response as stored and as read. Only the form owner's key turns one into the other.</Figcap>
           </figure>
         </Row>
       </div>
@@ -976,7 +1225,7 @@ function Security() {
 }
 
 /* ------------------------------------------------------------------ */
-/* 04 — Source                                                         */
+/* 05 — Source                                                         */
 /* ------------------------------------------------------------------ */
 
 function Source() {
@@ -985,7 +1234,7 @@ function Source() {
     <section id="source" className="border-t border-line">
       <div className="sheet py-24 lg:py-[120px]">
         <SectionHead
-          no="04 — Source"
+          no="05 — Source"
           title="Built in public, from the first commit."
           lede="Every app is open source and developed in the open on GitHub. Read the code, file an issue or run it yourself."
         />
@@ -1104,6 +1353,7 @@ function Home() {
         <Hero />
         <Suite />
         <Agents />
+        <Storage />
         <Security />
         <Source />
         <Close />

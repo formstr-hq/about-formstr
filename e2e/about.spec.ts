@@ -51,6 +51,7 @@ test.describe("home", () => {
     for (const [label, id] of [
       ["Suite", "suite"],
       ["Agents", "agents"],
+      ["Storage", "storage"],
       ["Security", "security"],
       ["Source", "source"],
     ]) {
@@ -78,6 +79,36 @@ test.describe("home", () => {
     await button.click();
     await expect(button).toContainText("Copied");
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("npx -y @formstr/mcp");
+  });
+
+  test("storage: whichever option you pick, only you can read it", async ({ page }) => {
+    await page.goto("/");
+    const storage = page.locator("section#storage");
+    await expect(storage.getByRole("heading", { level: 2 })).toHaveText("Hosted or self-hosted. Encrypted either way.");
+    // Our relay is an option, not the presumed answer.
+    await expect(storage.getByRole("radio", { name: /Formstr Relay/ })).not.toBeChecked();
+    const readers = storage.locator("dt", { hasText: "Who can read it" }).locator("xpath=following-sibling::dd");
+    const destination = storage.locator("figure p.font-mono").first();
+    for (const [option, dest] of [
+      ["On this device", "Nothing sent"],
+      ["Your own relay", "relay.yourco.internal"],
+      ["Relays you choose", "relay.damus.io"],
+      ["Formstr Relay", "relay.formstr.app"],
+    ]) {
+      await storage.getByText(option, { exact: true }).click();
+      await expect(storage.getByRole("radio", { name: new RegExp(option) })).toBeChecked();
+      await expect(destination).toContainText(dest);
+      await expect(readers).toHaveText("Only you, and people you share with");
+    }
+  });
+
+  test("storage options work from the keyboard", async ({ page, isMobile }) => {
+    test.skip(isMobile, "keyboard navigation");
+    await page.goto("/");
+    const storage = page.locator("section#storage");
+    await storage.getByRole("radio", { name: /Your own relay/ }).focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(storage.getByRole("radio", { name: /Relays you choose/ })).toBeChecked();
   });
 
   test("source table links every repository", async ({ page }) => {
@@ -139,6 +170,65 @@ test.describe("agent figure (Fig. 2)", () => {
   });
 });
 
+test.describe("agent thoughts (Fig. 2)", () => {
+  const thought = (page: Page) => agentFigure(page).locator("a[data-thought]");
+  const apps: Record<string, string> = {
+    Formstr: "https://formstr.app",
+    Calendar: "https://calendar.formstr.app",
+    Pages: "https://pages.formstr.app",
+    Drive: "https://drive.formstr.app",
+    Mailstr: "https://mailstr.app",
+  };
+
+  test("each thought links to the app it offers", async ({ page }) => {
+    await page.goto("/");
+    await agentFigure(page).scrollIntoViewIfNeeded();
+    const seen = new Set<string>();
+    for (let i = 0; i < 6 && seen.size < 5; i++) {
+      const app = (await thought(page).getAttribute("data-thought"))!;
+      await expect(thought(page)).toHaveAttribute("href", apps[app]);
+      await expect(thought(page)).toHaveAttribute("target", "_blank");
+      seen.add(app);
+      await expect(thought(page)).not.toHaveAttribute("data-thought", app, { timeout: 6000 });
+    }
+    expect([...seen].sort()).toEqual(Object.keys(apps).sort());
+  });
+
+  test("hovering a thought keeps it from changing", async ({ page, isMobile }) => {
+    test.skip(isMobile, "no hover on touch screens");
+    await page.goto("/");
+    await agentFigure(page).scrollIntoViewIfNeeded();
+    const app = await thought(page).getAttribute("data-thought");
+    await thought(page).hover();
+    await page.waitForTimeout(4500);
+    await expect(thought(page)).toHaveAttribute("data-thought", app!);
+  });
+
+  test("reduced motion holds a single thought", async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: "reduce" });
+    const page = await context.newPage();
+    await page.goto("/");
+    await agentFigure(page).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(4500);
+    await expect(thought(page)).toHaveAttribute("data-thought", "Formstr");
+    await context.close();
+  });
+
+  test("tapping the figure on a touch screen is handled cleanly", async ({ page, isMobile }) => {
+    test.skip(!isMobile, "touch only");
+    const errors = trackErrors(page);
+    await page.goto("/");
+    const fig = agentFigure(page);
+    await fig.scrollIntoViewIfNeeded();
+    await expect(fig).toHaveAttribute("data-live", "", { timeout: 20_000 });
+    // Tap empty stage (bottom-right, away from the bubble link).
+    const box = (await fig.boundingBox())!;
+    await page.touchscreen.tap(box.x + box.width * 0.85, box.y + box.height * 0.6);
+    await page.waitForTimeout(500);
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe("privacy policy", () => {
   test("prerendered page hydrates cleanly", async ({ page }) => {
     const errors = trackErrors(page);
@@ -166,6 +256,7 @@ test.describe("llms.txt", () => {
     expect(body.startsWith("# Formstr\n")).toBe(true);
     expect(body).toContain("npx -y @formstr/mcp");
     expect(body).toContain("packages/mcp/AGENTS.md");
+    expect(body).toContain("wss://relay.formstr.app");
     for (const host of ["formstr.app", "calendar.formstr.app", "pages.formstr.app", "drive.formstr.app", "mailstr.app"]) {
       expect(body).toContain(`https://${host}`);
     }
