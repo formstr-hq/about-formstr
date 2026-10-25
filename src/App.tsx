@@ -1,11 +1,23 @@
-import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import type { Point } from "./three/AgentScene";
-import type { ComponentType, CSSProperties, ReactNode } from "react";
+import type { ComponentType, CSSProperties, FormEvent, ReactNode } from "react";
 import { ArrowDown, ArrowUpRight, Check, ChevronDown, Copy, Lock } from "lucide-react";
 import "./index.css";
 import repoStats from "./data/repos.json";
+import demoForm from "./data/demo-form.json";
+import {
+  DEMO_FORM,
+  DEMO_RESULTS_KEY,
+  decryptResponse,
+  enhanceFormHtml,
+  fetchFormVersions,
+  fetchResults,
+  sdkRawTags,
+  talliedQuestion,
+} from "./lib/form.mjs";
+import type { Results } from "./lib/form.mjs";
 
 /* The privacy page pulls in a markdown renderer the home page doesn't need,
    so the browser loads it on demand. The prerender passes the real component
@@ -32,7 +44,7 @@ const apps = [
   { name: "Mailstr", what: "Email", url: "https://mailstr.app", color: "var(--color-mail)" },
 ];
 
-/* What the agent offers to do, one thought at a time (Fig. 2). Each opens its app. */
+/* What the agent offers to do, one thought at a time (agent figure). Each opens its app. */
 const thoughts = [
   { text: "Draft a survey?", app: "Formstr", url: "https://formstr.app", color: "var(--color-forms)" },
   { text: "Manage your calendar?", app: "Calendar", url: "https://calendar.formstr.app", color: "var(--color-cal)" },
@@ -94,13 +106,8 @@ function SectionHead({ no, title, lede }: { no: string; title: string; lede?: Re
   );
 }
 
-function Figcap({ n, children }: { n: number; children: ReactNode }) {
-  return (
-    <figcaption className="figcap">
-      <b>Fig. {n}</b>
-      <span>{children}</span>
-    </figcaption>
-  );
+function Figcap({ children }: { children: ReactNode }) {
+  return <figcaption className="figcap">{children}</figcaption>;
 }
 
 /* Browser-window chrome around a product plate. */
@@ -246,91 +253,511 @@ export function Navbar() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Hero + Fig. 1                                                       */
+/* Hero + the example form                                            */
 /* ------------------------------------------------------------------ */
 
-function FormVignette() {
-  const field = "relative mt-[22px]";
-  const marker = "marker absolute -left-[22px] top-px";
+/* The hero's example form is real: "Site visit feedback", fetched and
+   rendered with @formstr/sdk at build time (scripts/fetch-form.mjs), so the
+   page ships the real form markup. The SDK only loads when someone starts
+   filling it in. Responses are signed with a results key this page publishes
+   and encrypted to the form's pubkey, so the Formstr app and any browser can
+   open them: the page shows the whole round trip and a live tally with no
+   server (see DEMO_RESULTS_KEY in src/lib/form.mjs). */
+type SignedEvent = {
+  id: string;
+  kind: number;
+  pubkey: string;
+  created_at: number;
+  tags: string[][];
+  content: string;
+  sig: string;
+};
+const demoEvent = demoForm.event as SignedEvent;
+
+const clip = (v: string, n: number) => (v.length > n ? `${v.slice(0, n)}…` : v);
+const loadSdk = () => import("@formstr/sdk");
+
+/* ---- live results ---- */
+
+/* The current form: the build-time snapshot first, replaced by the live
+   version from the relays when that's newer (see Hero). */
+type DemoField = { id: string; labelHtml: string; options?: { id: string; labelHtml: string }[] };
+type FormShape = typeof demoForm.form;
+type LiveForm = { form: FormShape; html: string; event: SignedEvent };
+const snapshot: LiveForm = { form: demoForm.form, html: demoForm.html, event: demoEvent };
+const fieldsOf = (form: FormShape) => form.fieldOrder.map((id) => (form.fields as Record<string, DemoField>)[id]);
+const answerLabel = (form: FormShape, fieldId: string, value: string) =>
+  fieldsOf(form)
+    .find((f) => f.id === fieldId)
+    ?.options?.find((o) => o.id === value)?.labelHtml ?? value;
+/* The tallied question from the snapshot, until live results describe it. */
+const snapshotQuestion = talliedQuestion(demoEvent)!;
+
+/* The newest signed version of the form, fetched once per page load and
+   shared by the hero and the results views. Falls back to the build snapshot
+   if the relays don't answer, or don't have anything newer. */
+let currentForm: Promise<SignedEvent> | null = null;
+function currentFormEvent() {
+  currentForm ??= (async () => {
+    // Only versions newer than the snapshot matter; nostr-tools (for the
+    // signature check) only loads if there is one.
+    const newer = ((await fetchFormVersions(DEMO_FORM.relays)) as SignedEvent[]).filter(
+      (e) => e.created_at > demoEvent.created_at,
+    );
+    if (!newer.length) return demoEvent;
+    const { verifyEvent } = await import("nostr-tools");
+    return newer.find((e) => verifyEvent(e)) ?? demoEvent;
+  })().catch(() => demoEvent);
+  return currentForm;
+}
+
+
+/* Current time, client-only (null in the prerender, so relative times never
+   cause a hydration mismatch), refreshed every 30 s. */
+function useNow() {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const tick = () => setNow(Math.floor(Date.now() / 1000));
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function ago(at: number, now: number) {
+  const s = Math.max(0, now - at);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+}
+
+function ResultBars({ results, yours }: { results: Results | null; yours?: string }) {
+  const max = Math.max(1, ...Object.values(results?.counts ?? {}));
+  const question = results?.question ?? snapshotQuestion;
   return (
-    <div className="rounded-md border border-line-2 border-t-4 border-t-forms bg-white px-7 py-[26px]">
-      <h4 className="text-xl font-semibold tracking-[-0.01em]">Site visit feedback</h4>
-      <p className="mt-1.5 text-[13.5px] text-mute">Two minutes. Answers are encrypted to the facilities team.</p>
-      <div className={field}>
-        <span className={marker}>1</span>
-        <p className="mb-2 text-sm font-medium">
-          Your name <span className="text-mail">*</span>
-        </p>
-        <div className="flex h-[38px] items-center rounded-[4px] border border-line px-3 text-[13.5px] text-ink-2">
-          Dana Okafor
-        </div>
-      </div>
-      <div className={field}>
-        <span className={marker}>2</span>
-        <p className="mb-2 text-sm font-medium">How was the visit?</p>
-        <div className="flex gap-2">
-          {["Smooth", "Mixed", "Rough"].map((o, i) => (
-            <div
-              key={o}
-              data-on={i === 0 ? "" : undefined}
-              className={`opt flex h-[38px] min-w-0 flex-1 items-center gap-2 rounded-[4px] border px-2.5 text-[13px] sm:px-3 sm:text-[13.5px] ${
-                i === 0 ? "border-forms bg-[#fff6f0]" : "border-line"
-              }`}
-            >
-              {o}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className={field}>
-        <span className={marker}>3</span>
-        <p className="mb-2 text-sm font-medium">What should we change?</p>
-        <div className="min-h-[70px] rounded-[4px] border border-line px-3 py-2.5 text-[13.5px] leading-normal text-ink-2">
-          Badge pickup took twenty minutes. Could the passes be ready the day before?
-        </div>
-      </div>
-      <div className="mt-[22px] flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-xs text-mute">
-          <Lock size={12} /> Response encrypted before sending
-        </span>
-        <span className="rounded-[4px] bg-ink px-4 py-2 text-[13.5px] font-medium text-white">Submit</span>
-      </div>
+    <div className="grid gap-3 text-[13px]">
+      {question.options.map((o) => {
+        const n = results?.counts[o.id] ?? 0;
+        return (
+          <div key={o.id} className="grid grid-cols-[minmax(0,88px)_1fr_26px] items-center gap-2.5">
+            <span className="flex items-center gap-1.5 truncate">
+              {o.label}
+              {yours === o.id && <span className="cap text-forms normal-case">you</span>}
+            </span>
+            <span className="h-2.5 overflow-hidden rounded-[2px] bg-line-2">
+              <b
+                className="block h-full rounded-[2px] bg-forms transition-[width] duration-700"
+                style={{ width: `${(n / max) * 100}%` }}
+              />
+            </span>
+            <span className="text-right font-mono text-xs text-mute">{n}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function EventListing() {
+/* ---- the form ---- */
+
+type Sent = { event: SignedEvent; values: Record<string, string> };
+
+/* The answers in the embedded form, as the SDK will submit them. */
+function formValues(formEl: HTMLFormElement) {
+  const values: Record<string, string> = {};
+  new FormData(formEl).forEach((v, k) => {
+    if (typeof v === "string" && v.trim()) values[k] = v.trim();
+  });
+  return values;
+}
+
+function DemoForm({
+  live,
+  onSent,
+  onTouch,
+  onDraft,
+}: {
+  live: LiveForm;
+  onSent: (sent: Sent | null) => void;
+  onTouch: () => void;
+  /** Called as the answers change, so the event panel can show the response taking shape. */
+  onDraft: (values: Record<string, string>) => void;
+}) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [sent, setSent] = useState<Sent | null>(null);
+  // React 19 re-applies dangerouslySetInnerHTML whenever the prop object
+  // changes identity, which would wipe what someone has typed on every
+  // re-render. Keep it stable until the form itself changes.
+  const formHtml = useMemo(() => ({ __html: live.html }), [live.html]);
+
+  // The embedded markup is the SDK's own; React only listens to it.
+  const onSubmit = async (e: FormEvent<HTMLDivElement>) => {
+    const formEl = e.target as HTMLFormElement;
+    e.preventDefault();
+    const values = formValues(formEl);
+    const button = formEl.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Encrypting and sending…";
+    }
+    setState("sending");
+    try {
+      const [{ FormstrSDK }, nt] = await Promise.all([loadSdk(), import("nostr-tools")]);
+      // The SDK's anonymous-response scheme, with the published results key
+      // as the signer: encrypted to the form's pubkey, so the owner reads it
+      // in Formstr as usual, and any browser can read it with the results key.
+      const key = Uint8Array.from(DEMO_RESULTS_KEY.secret.match(/../g)!, (b) => parseInt(b, 16));
+      const conv = (pub: string) => nt.nip44.v2.utils.getConversationKey(key, pub);
+      const signer = {
+        getPublicKey: async () => DEMO_RESULTS_KEY.pubkey,
+        signEvent: async (ev: Parameters<typeof nt.finalizeEvent>[0]) => nt.finalizeEvent(ev, key),
+        nip44Encrypt: async (pub: string, text: string) => nt.nip44.v2.encrypt(text, conv(pub)),
+        nip44Decrypt: async (pub: string, text: string) => nt.nip44.v2.decrypt(text, conv(pub)),
+      };
+      const event = (await new FormstrSDK().submit(live.form as never, values, signer)) as SignedEvent;
+      const next = { event, values };
+      setSent(next);
+      setState("sent");
+      onSent(next);
+    } catch {
+      setState("error");
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Submit";
+      }
+    }
+  };
+
+  if (state === "sent" && sent) {
+    return (
+      <SentFlow
+        sent={sent}
+        form={live.form}
+        onReset={() => {
+          setSent(null);
+          setState("idle");
+          onSent(null);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-line-2 border-t-4 border-t-forms bg-white px-7 py-[26px]">
+      <div
+        className="demo-form"
+        onSubmit={onSubmit}
+        onInput={(e) => {
+          const formEl = (e.currentTarget as HTMLElement).querySelector("form");
+          if (formEl) onDraft(formValues(formEl));
+        }}
+        onChange={(e) => {
+          const formEl = (e.currentTarget as HTMLElement).querySelector("form");
+          if (formEl) onDraft(formValues(formEl));
+        }}
+        // Warm the SDK as soon as someone starts filling the form in (and
+        // tell the hero not to swap in a newer version under their fingers).
+        onFocusCapture={() => {
+          onTouch();
+          void loadSdk();
+        }}
+        dangerouslySetInnerHTML={formHtml}
+      />
+      <p className="mt-4 flex items-center gap-1.5 text-xs text-mute">
+        <Lock size={12} />
+        {state === "error"
+          ? "Couldn't reach the relays. Your answers are still here; try again."
+          : "Encrypted in your browser before sending"}
+      </p>
+    </div>
+  );
+}
+
+/* Read one event back from a relay by id (the round trip, done for real). */
+function fetchFromRelay(relay: string, id: string, ms = 5000): Promise<SignedEvent | null> {
+  return new Promise((resolve) => {
+    let ws: WebSocket;
+    const done = (ev: SignedEvent | null) => {
+      clearTimeout(timer);
+      try {
+        ws?.close();
+      } catch {
+        /* already closed */
+      }
+      resolve(ev);
+    };
+    const timer = setTimeout(() => done(null), ms);
+    try {
+      ws = new WebSocket(relay);
+    } catch {
+      return done(null);
+    }
+    ws.onopen = () => ws.send(JSON.stringify(["REQ", "check", { ids: [id] }]));
+    ws.onmessage = (m) => {
+      const [type, , ev] = JSON.parse(m.data);
+      if (type === "EVENT") done(ev);
+      if (type === "EOSE") done(null);
+    };
+    ws.onerror = () => done(null);
+    ws.onclose = () => done(null);
+  });
+}
+
+type Step = "pending" | "done" | "failed";
+
+/* After submitting: the real round trip, step by step, then the live tally. */
+function SentFlow({ sent, form, onReset }: { sent: Sent; form: FormShape; onReset: () => void }) {
+  const relay = form.relays[0];
+  const relayHost = relay.replace(/^wss:\/\//, "");
+  const [stored, setStored] = useState<Step>("pending");
+  const [answers, setAnswers] = useState<[string, string][] | null>(null);
+  const [results, setResults] = useState<Results | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // 2. Fetch it back from the relay (it may take a moment to land).
+      let ev: SignedEvent | null = null;
+      for (let i = 0; i < 4 && !ev && !cancelled; i++) {
+        if (i) await new Promise((r) => setTimeout(r, 1000));
+        ev = await fetchFromRelay(relay, sent.event.id);
+      }
+      if (cancelled) return;
+      setStored(ev ? "done" : "failed");
+      // 3. Decrypt what the relay returned, with the published results key:
+      //    exactly what any visitor's browser can do.
+      const source = ev ?? sent.event;
+      try {
+        const tags = await decryptResponse(source);
+        if (!cancelled)
+          setAnswers(
+            tags
+              .filter((t) => t[0] === "response")
+              .map(([, fid, v]) => [fieldsOf(form).find((f) => f.id === fid)?.labelHtml ?? fid, answerLabel(form, fid, v)]),
+          );
+      } catch {
+        /* leave the step pending */
+      }
+      // 4. The live tally, until it counts this response.
+      for (let i = 0; i < 6 && !cancelled; i++) {
+        const r = await fetchResults(await currentFormEvent(), { includes: sent.event.id });
+        if (cancelled) break;
+        // A round where no relay answered just waits for the next one.
+        if (r) setResults(r);
+        if (r?.includes) break;
+        await new Promise((res) => setTimeout(res, 2000));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [relay, sent, form]);
+
+  const steps: [Step, string, ReactNode][] = [
+    ["done", "Encrypted in your browser", <span className="font-mono">{clip(sent.event.content, 26)}</span>],
+    [
+      stored,
+      `Stored on ${relayHost}`,
+      stored === "failed" ? "Couldn't read it back yet" : <span className="font-mono">event {clip(sent.event.id, 12)}</span>,
+    ],
+    [
+      answers ? "done" : "pending",
+      "Decrypted with this page's results key",
+      answers ? (
+        <span className="grid gap-0.5 whitespace-normal">
+          {answers.map(([q, a]) => (
+            <span key={q}>
+              {q} <span className="text-ink">{a}</span>
+            </span>
+          ))}
+        </span>
+      ) : null,
+    ],
+  ];
+
+  return (
+    <div className="rounded-md border border-line-2 border-t-4 border-t-forms bg-white px-7 py-[26px]" role="status">
+      <p className="flex items-center gap-2 text-xl font-semibold tracking-[-0.01em]">
+        <Check size={20} className="text-forms" /> Sent
+      </p>
+      <ol className="mt-5 grid gap-3.5">
+        {steps.map(([st, title, detail], i) => (
+          <li key={title} className="grid grid-cols-[16px_1fr] gap-x-2.5 text-[13.5px]">
+            <span
+              className={`marker mt-[2px] ${st === "pending" ? "!bg-line animate-pulse" : st === "failed" ? "!bg-faint" : ""}`}
+            >
+              {i + 1}
+            </span>
+            <span className="font-medium">{title}</span>
+            {detail && <span className="col-start-2 mt-0.5 truncate text-[12.5px] text-mute">{detail}</span>}
+          </li>
+        ))}
+      </ol>
+      {results && (
+        <div className="mt-6 border-t border-line-2 pt-5">
+          <p className="mb-3 flex items-baseline justify-between gap-3">
+            <span className="text-[14px] font-medium">{results.question.label}</span>
+            <span className="cap">
+              {results.total} {results.total === 1 ? "response" : "responses"}
+            </span>
+          </p>
+          <ResultBars results={results} yours={results.includes ? sent.values[results.question.id] : undefined} />
+        </div>
+      )}
+      <button type="button" onClick={onReset} className="mt-6 border-b border-ink pb-0.5 text-sm font-medium">
+        Send another
+      </button>
+    </div>
+  );
+}
+
+/* The right-hand panel while someone fills the form in: the response event
+   their answers become, before it's encrypted and signed. Numbered like the
+   questions; choice answers show their label next to the stored id. */
+function DraftListing({ values, form }: { values: Record<string, string>; form: FormShape }) {
   const s = (t: string) => <span className="s">"{t}"</span>;
   const k = (t: string) => <span className="k">"{t}"</span>;
-  const field = (id: string, type: string, label: string, n: number) => (
-    <>
-      <span className="hl">
-        {"    ["}
-        {s("field")}, {s(id)}, {s(type)}, {s(label)}, …]
-      </span>
-      {"  "}
-      <span className="marker align-[1px]">{n}</span>
-      {"\n"}
-    </>
-  );
+  const fields = fieldsOf(form);
+  const answered = fields.map((f, i) => ({ f, n: i + 1 })).filter(({ f }) => values[f.id]);
   return (
     <pre className="ev">
       {"{\n  "}
-      {k("kind")}: <span className="num">30168</span>,{"\n  "}
-      {k("pubkey")}: {s("3bf0c63fcb93463407af97a5e5ee64fa…")},{"\n  "}
-      {k("created_at")}: <span className="num">1761292800</span>,{"\n  "}
-      {k("tags")}: [{"\n    "}[{s("d")}, {s("site-visit")}],{"\n    "}[{s("name")}, {s("Site visit feedback")}],{"\n"}
-      {field("q1", "text", "Your name", 1)}
-      {field("q2", "option", "How was the visit?", 2)}
-      {field("q3", "text", "What should we change?", 3)}
-      {"  ],\n  "}
-      {k("sig")}: {s("a91c4e…07e2")}
+      {k("kind")}: <span className="num">1069</span>,{"\n  "}
+      {k("pubkey")}: {s(clip(DEMO_RESULTS_KEY.pubkey, 24))},{"\n  "}
+      {k("tags")}: [[{s("a")}, {s(clip(`30168:${form.pubkey}:${form.id}`, 26))}]],{"\n  "}
+      {k("content")}: <span className="k">encrypt</span>([{"\n"}
+      {answered.map(({ f, n }) => {
+        const label = f.options?.length ? answerLabel(form, f.id, values[f.id]) : null;
+        return (
+          <span key={f.id}>
+            <span className="hl">
+              {"    ["}
+              {s("response")}, {s(f.id)}, {s(clip(values[f.id], 28))}, {s("{}")}]
+            </span>
+            {label && <span className="k">{`  // ${label}`}</span>}
+            {"  "}
+            <span className="marker align-[1px]">{n}</span>
+            {"\n"}
+          </span>
+        );
+      })}
+      {"  ]),\n  "}
+      {k("sig")}: <span className="k">signed on submit</span>
+      {"\n}"}
+    </pre>
+  );
+}
+
+/* The right-hand panel: the form event as fetched, or, once someone has
+   submitted, their response exactly as the relays stored it. */
+function EventListing({ event }: { event: SignedEvent }) {
+  const s = (t: string) => <span className="s">"{t}"</span>;
+  const k = (t: string) => <span className="k">"{t}"</span>;
+  const num = (t: number) => <span className="num">{t}</span>;
+  const fieldTags = event.tags.filter((t) => t[0] === "field");
+  const shown = event.tags.filter((t) => ["d", "name", "a"].includes(t[0]));
+  const relays = event.tags.filter((t) => t[0] === "relay");
+  return (
+    <pre className="ev">
+      {"{\n  "}
+      {k("kind")}: {num(event.kind)},{"\n  "}
+      {k("pubkey")}: {s(clip(event.pubkey, 24))},{"\n  "}
+      {k("created_at")}: {num(event.created_at)},{"\n  "}
+      {k("tags")}: [{"\n"}
+      {shown.map((t) => (
+        <span key={t.join()}>
+          {"    ["}
+          {t.slice(0, 2).map((v, i) => (
+            <span key={i}>
+              {i ? ", " : ""}
+              {s(clip(v, 40))}
+            </span>
+          ))}
+          ],{"\n"}
+        </span>
+      ))}
+      {fieldTags.map((t, i) => (
+        <span key={t[1]}>
+          <span className="hl">
+            {"    ["}
+            {s("field")}, {s(t[1])}, {s(t[2])}, {s(t[3])}, …]
+          </span>
+          {"  "}
+          <span className="marker align-[1px]">{i + 1}</span>
+          {"\n"}
+        </span>
+      ))}
+      {relays.length > 0 && (
+        <span>
+          {"    ["}
+          {s("relay")}, {s(relays[0][1])}], …{"\n"}
+        </span>
+      )}
+      {"  ],\n"}
+      {event.content && (
+        <span>
+          {"  "}
+          {k("content")}: <span className="hl">{s(clip(event.content, 34))}</span>,{"\n"}
+        </span>
+      )}
+      {"  "}
+      {k("sig")}: {s(clip(event.sig, 16))}
       {"\n}"}
     </pre>
   );
 }
 
 function Hero() {
+  const [sent, setSent] = useState<Sent | null>(null);
+  const response = sent?.event ?? null;
+
+  // The page ships a build-time snapshot of the form for an instant first
+  // paint, then checks the relays for a newer version, so edits made in
+  // Formstr show up without a redeploy. The check is one query per relay;
+  // the SDK only loads if the form actually changed.
+  const [live, setLive] = useState<LiveForm>(snapshot);
+  const touched = useRef(false);
+  const pending = useRef<LiveForm | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      const ev = await currentFormEvent();
+      if (cancelled || ev === demoEvent) return;
+      const { FormstrSDK } = await loadSdk();
+      if (cancelled) return;
+      const sdk = new FormstrSDK();
+      const form = sdk.normalizeForm(sdkRawTags(ev));
+      const html = enhanceFormHtml(sdk.renderHtml(form).html!.form, form as never);
+      const next = { form: form as unknown as FormShape, html, event: ev };
+      // Never swap the form out from under someone filling it in.
+      if (touched.current) pending.current = next;
+      else setLive(next);
+    };
+    const start = () => void check().catch(() => {});
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 200));
+    idle(start);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  // The answers so far, before submitting: the event panel shows the
+  // response event taking shape as they change.
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const drafting = !response && Object.keys(draft).length > 0;
+  const onSent = (next: Sent | null) => {
+    setSent(next);
+    setDraft({});
+    // "Send another": a newer version that arrived meanwhile takes over now.
+    if (!next) {
+      touched.current = false;
+      if (pending.current) {
+        setLive(pending.current);
+        pending.current = null;
+      }
+    }
+  };
   return (
     <div className="sheet">
       <Row className="pt-16 pb-16 lg:pt-24">
@@ -363,24 +790,30 @@ function Hero() {
             <div className="p-5 pl-10 sm:p-8 sm:pl-12">
               <div className="mb-[22px] flex justify-between gap-4">
                 <span className="cap">What a person sees</span>
-                <span className="cap hidden sm:inline">formstr.app/f/site-visit</span>
               </div>
-              <FormVignette />
+              <DemoForm live={live} onSent={onSent} onTouch={() => (touched.current = true)} onDraft={setDraft} />
             </div>
             <div className="relative border-t border-line bg-night p-5 sm:p-8 lg:border-t-0 lg:border-l">
               <span className="absolute top-0 left-1/2 z-10 grid h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-line bg-paper font-mono text-[13px] lg:top-1/2 lg:left-0">
                 =
               </span>
-              <div className="mb-[22px] flex justify-between gap-4">
-                <span className="cap text-night-mute">What an agent reads</span>
-                <span className="cap text-night-mute">kind 30168 · signed</span>
+              <div className="mb-[22px] flex justify-between gap-4" aria-live="polite">
+                <span className="cap text-night-mute">
+                  {response ? "What the relays received" : drafting ? "What you're about to send" : "What an agent reads"}
+                </span>
+                <span className="cap text-night-mute">
+                  {response ? "kind 1069 · encrypted" : drafting ? "kind 1069 · draft" : "kind 30168 · signed"}
+                </span>
               </div>
-              <EventListing />
+              {drafting ? <DraftListing values={draft} form={live.form} /> : <EventListing event={response ?? live.event} />}
             </div>
           </div>
-          <Figcap n={1}>
-            One form, two readers. People get a form. Agents get the signed event it's made of, in a public format any
-            Nostr client can parse, with no Formstr API in between.
+          <Figcap>
+            {response
+              ? "Your response, as stored: ciphertext the form's owner opens in Formstr. This demo also publishes a key that opens it, so every visitor's browser can tally results live."
+              : drafting
+                ? "Your answers, as the response event they become: one tag per question, encrypted and signed when you submit."
+                : "One form, two readers. People get a form. Agents get the signed event it's made of, in a public format any Nostr client can parse, with no Formstr API in between."}
           </Figcap>
         </figure>
       </Row>
@@ -443,46 +876,90 @@ function Entry({ color, kindLabel, kinds, name, body, specs, url, plate, flush }
   );
 }
 
+/* The Formstr plate: the example form's real responses, tallied live by
+   /api/results (counts and times only; free text is never shown). Refreshes
+   every 30 s while on screen. */
 function FormsPlate() {
-  const bars: [string, number][] = [
-    ["Smooth", 15],
-    ["Mixed", 7],
-    ["Rough", 2],
-  ];
-  const rows = [
-    ["Dana Okafor", "Badge pickup took twenty minutes…", "09:41"],
-    ["Anonymous", "Great hosts. Parking was confusing.", "09:12"],
-    ["npub1qe3…7xk2", "Lunch was excellent, thank you.", "08:57"],
-  ];
+  const ref = useRef<HTMLDivElement>(null);
+  const [results, setResults] = useState<Results | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+  const now = useNow();
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let retried = false;
+    const load = async (): Promise<void> => {
+      const r = await fetchResults(await currentFormEvent());
+      // A refresh where no relay answered keeps the last good numbers.
+      if (r) setResults(r);
+      setUnavailable(!r);
+      // Relays are flaky: if the very first look fails, try once more soon.
+      if (!r && !retried) {
+        retried = true;
+        setTimeout(() => void load(), 3000);
+      }
+    };
+    const io = new IntersectionObserver(([e]) => {
+      clearInterval(timer);
+      if (e.isIntersecting) {
+        void load();
+        timer = setInterval(load, 30_000);
+      }
+    });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      clearInterval(timer);
+    };
+  }, []);
+
+  const total = results?.total ?? 0;
   return (
-    <Win url="formstr.app / site-visit / responses">
-      <div className="grid sm:grid-cols-[1.1fr_1fr]">
-        <div className="p-6">
-          <h5 className="text-[15px] font-semibold">How was the visit?</h5>
-          <span className="cap">24 responses</span>
-          <div className="mt-5 grid gap-3 text-[13px]">
-            {bars.map(([label, n]) => (
-              <div key={label} className="grid grid-cols-[80px_1fr_26px] items-center gap-2.5">
-                <span>{label}</span>
-                <b className="h-2.5 rounded-[2px] bg-forms" style={{ width: `${(n / 15) * 100}%` }} />
-                <span className="text-right font-mono text-xs text-mute">{n}</span>
-              </div>
-            ))}
+    <div ref={ref}>
+      <Win url="formstr.app / site-visit-feedback / responses">
+        <div className="grid sm:grid-cols-[1.1fr_1fr]">
+          <div className="p-6">
+            <h5 className="text-[15px] font-semibold">{(results?.question ?? snapshotQuestion).label}</h5>
+            <span className="cap">
+              {results
+                ? total
+                  ? `${total} ${total === 1 ? "response" : "responses"} · live`
+                  : "No responses yet"
+                : unavailable
+                  ? "Results unavailable right now"
+                  : "Loading results…"}
+            </span>
+            <div className="mt-5">
+              <ResultBars results={results} />
+            </div>
+          </div>
+          <div className="border-t border-line-2 px-6 py-4 text-[13px] sm:border-t-0 sm:border-l">
+            <p className="cap mb-1">Latest</p>
+            {results?.recent.length ? (
+              results.recent.slice(0, 4).map((r, i) => (
+                <div key={`${r.at}-${i}`} className={`flex justify-between gap-3 py-2.5 ${i ? "border-t border-line-2" : ""}`}>
+                  <span className="flex items-center gap-2">
+                    <i className="h-2 w-2 rounded-full bg-forms" />
+                    {(results.question.options.find((o) => o.id === r.choice) ?? { label: r.choice }).label}
+                  </span>
+                  <small className="font-mono text-[11.5px] text-mute">{now ? ago(r.at, now) : ""}</small>
+                </div>
+              ))
+            ) : (
+              <p className="py-2.5 leading-relaxed text-ink-2">
+                Nothing yet. The form at the top of this page is this one:{" "}
+                <a href="#" className="underline underline-offset-4">
+                  answer it
+                </a>{" "}
+                and watch it land here.
+              </p>
+            )}
           </div>
         </div>
-        <div className="border-t border-line-2 px-6 py-3 text-[13px] sm:border-t-0 sm:border-l">
-          {rows.map(([who, what, at], i) => (
-            <div key={who} className={`flex justify-between gap-3 py-2.5 ${i ? "border-t border-line-2" : ""}`}>
-              <span>
-                {who}
-                <em className="mt-0.5 block not-italic text-ink-2">{what}</em>
-              </span>
-              <small className="font-mono text-[11.5px] text-mute">{at}</small>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Win>
+      </Win>
+    </div>
   );
 }
 
@@ -702,7 +1179,7 @@ function canRender3D() {
   }
 }
 
-/* Fig. 2. The robot still is the figure; the live 3D scene is an
+/* The agent figure. The robot still is the figure; the live 3D scene is an
    enhancement layered over it. The scene is only downloaded once the figure
    nears the viewport (and only for visitors who can and want to run it). It
    fades in once it has drawn, and if anything goes wrong (the chunk fails to
@@ -849,7 +1326,7 @@ function AgentFigure() {
         <span className="cap absolute bottom-3.5 left-4">Your agent</span>
         <span className="cap absolute right-4 bottom-3.5 normal-case">npub1ag3…k9qz</span>
       </div>
-      <Figcap n={2}>
+      <Figcap>
         Your agent, with an identity of its own. Every action it takes is signed by its key, so you can always tell
         its work from yours.
       </Figcap>
@@ -896,7 +1373,7 @@ function Session() {
           ))}
         </div>
       </div>
-      <Figcap n={3}>
+      <Figcap>
         Creating things is on by default. Sending, sharing, editing and deleting wait for{" "}
         <span className="font-mono">--allow-writes</span> and an explicit confirmation.
       </Figcap>
@@ -1136,7 +1613,7 @@ function Storage() {
                 </div>
               </div>
             </div>
-            <Figcap n={4}>
+            <Figcap>
               Pick any option: what gets stored is the same ciphertext, readable only with your key. You can mix
               options, too, such as your own relay plus a public one for redundancy.
             </Figcap>
@@ -1216,7 +1693,7 @@ function Security() {
                 </div>
               </div>
             </div>
-            <Figcap n={5}>A form response as stored and as read. Only the form owner's key turns one into the other.</Figcap>
+            <Figcap>A form response as stored and as read. Only the form owner's key turns one into the other.</Figcap>
           </figure>
         </Row>
       </div>

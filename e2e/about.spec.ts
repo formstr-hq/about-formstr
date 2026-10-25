@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import fs from "node:fs";
+import { finalizeEvent, nip44 } from "nostr-tools";
+import { DEMO_FORM, DEMO_RESULTS_KEY } from "../src/lib/form.mjs";
+
+const demo = JSON.parse(fs.readFileSync(new URL("../src/data/demo-form.json", import.meta.url), "utf8"));
 
 /* Collect anything the page reports as broken: uncaught exceptions and
    console errors (React hydration mismatches surface as both). */
@@ -15,6 +20,12 @@ function trackErrors(page: Page) {
 const agentFigure = (page: Page) => page.locator('[data-figure="agent"]');
 
 test.describe("home", () => {
+  // The page talks to relays after load (form freshness, live results);
+  // keep these tests off the real network.
+  test.beforeEach(async ({ page }) => {
+    await fakeRelays(page);
+  });
+
   test("renders and hydrates without errors", async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto("/");
@@ -124,7 +135,12 @@ test.describe("home", () => {
   });
 });
 
-test.describe("agent figure (Fig. 2)", () => {
+test.describe("agent figure", () => {
+  // Keep off the real relays: the page talks to them after load.
+  test.beforeEach(async ({ page }) => {
+    await fakeRelays(page);
+  });
+
   test("the still is shown before the 3D scene, and the scene goes live", async ({ page }) => {
     await page.goto("/");
     const fig = agentFigure(page);
@@ -170,7 +186,12 @@ test.describe("agent figure (Fig. 2)", () => {
   });
 });
 
-test.describe("agent thoughts (Fig. 2)", () => {
+test.describe("agent thoughts", () => {
+  // Keep off the real relays: the page talks to them after load.
+  test.beforeEach(async ({ page }) => {
+    await fakeRelays(page);
+  });
+
   const thought = (page: Page) => agentFigure(page).locator("a[data-thought]");
   const apps: Record<string, string> = {
     Formstr: "https://formstr.app",
@@ -229,6 +250,206 @@ test.describe("agent thoughts (Fig. 2)", () => {
   });
 });
 
+/* The hero's example form is real: submitting publishes a real response.
+   Tests stand in for every relay with a fake that stores what's published
+   and answers each REQ by its filter, like a relay would, so nothing is ever
+   published. */
+type Ev = { id: string; kind: number; pubkey: string; content: string; tags: string[][]; created_at: number };
+const matches = (e: Ev, f: Record<string, unknown>) =>
+  (!f.ids || (f.ids as string[]).includes(e.id)) &&
+  (!f["#d"] || e.tags.some((t) => t[0] === "d" && (f["#d"] as string[]).includes(t[1]))) &&
+  (!f.kinds || (f.kinds as number[]).includes(e.kind)) &&
+  (!f.authors || (f.authors as string[]).includes(e.pubkey)) &&
+  (!f["#a"] || e.tags.some((t) => t[0] === "a" && (f["#a"] as string[]).includes(t[1])));
+
+async function fakeRelays(page: Page, stored: Ev[] = []) {
+  const published: Ev[] = [];
+  await page.routeWebSocket(/^wss:\/\//, (ws) => {
+    ws.onMessage((raw) => {
+      const msg = JSON.parse(String(raw));
+      if (msg[0] === "EVENT") {
+        published.push(msg[1]);
+        ws.send(JSON.stringify(["OK", msg[1].id, true, ""]));
+      }
+      if (msg[0] === "REQ") {
+        for (const e of [demo.event, ...stored, ...published].filter((e) => matches(e, msg[2] ?? {})))
+          ws.send(JSON.stringify(["EVENT", msg[1], e]));
+        ws.send(JSON.stringify(["EOSE", msg[1]]));
+      }
+    });
+  });
+  return published;
+}
+
+/* A response exactly as the page sends one: signed with the published
+   results key, NIP-44 encrypted to the form's pubkey. */
+function pageResponse(choice: string, secondsAgo: number, key = DEMO_RESULTS_KEY.secret): Ev {
+  const sk = Uint8Array.from(key.match(/../g)!, (b) => parseInt(b, 16));
+  const conv = nip44.v2.utils.getConversationKey(sk, DEMO_FORM.pubkey);
+  return finalizeEvent(
+    {
+      kind: 1069,
+      created_at: Math.floor(Date.now() / 1000) - secondsAgo,
+      tags: [["a", `30168:${DEMO_FORM.pubkey}:${DEMO_FORM.id}`]],
+      content: nip44.v2.encrypt(JSON.stringify([["response", "f0", choice, "{}"]]), conv),
+    },
+    sk,
+  ) as Ev;
+}
+
+test.describe("example form", () => {
+  test("renders the SDK's form, accessible and without names", async ({ page }) => {
+    await page.goto("/");
+    const hero = page.locator("figure").first();
+    await expect(hero.locator(".form-name")).toHaveText("Site visit feedback");
+    await expect(hero.getByRole("radiogroup", { name: "How was the visit?" })).toBeVisible();
+    // One question, no names, no free text.
+    await expect(hero.locator(".demo-form").getByRole("textbox")).toHaveCount(0);
+    await expect(page.getByText(/^Fig\. \d/)).toHaveCount(0);
+  });
+
+  test("the event panel follows the answers as they're given", async ({ page }) => {
+    await fakeRelays(page);
+    await page.goto("/");
+    const hero = page.locator("figure").first();
+    const panel = hero.locator("pre.ev");
+    await expect(hero.getByText("kind 30168 · signed")).toBeVisible();
+
+    await hero.getByText("Mixed", { exact: true }).click();
+    await expect(hero.getByText("kind 1069 · draft")).toBeVisible();
+    await expect(panel).toContainText('["response", "f0", "o1", "{}"]');
+    await expect(panel).toContainText("// Mixed");
+
+    await hero.getByText("Rough", { exact: true }).click();
+    await expect(panel).toContainText('["response", "f0", "o2", "{}"]');
+    // Updating the panel must not reset the form (React re-applying its HTML).
+    await expect(hero.getByRole("radio", { name: "Rough" })).toBeChecked();
+  });
+
+  test("won't submit without the required choice", async ({ page }) => {
+    const published = await fakeRelays(page);
+    await page.goto("/");
+    const hero = page.locator("figure").first();
+    await hero.getByRole("button", { name: "Submit" }).click();
+    await page.waitForTimeout(500);
+    expect(published).toEqual([]);
+    await expect(hero.getByRole("button", { name: "Submit" })).toBeVisible();
+  });
+
+  test("shows the full round trip: encrypted, stored, decrypted, counted", async ({ page }) => {
+    const published = await fakeRelays(page, [pageResponse("o0", 400), pageResponse("o2", 900)]);
+    await page.goto("/");
+    const hero = page.locator("figure").first();
+    await hero.getByText("Mixed", { exact: true }).click();
+    await hero.getByRole("button", { name: "Submit" }).click();
+
+    const status = hero.getByRole("status");
+    await expect(status).toContainText("Sent");
+    await expect(status).toContainText("Encrypted in your browser");
+    await expect(status).toContainText("Stored on relay.formstr.app");
+    // Decrypted from what the relay served back, with the published key.
+    await expect(status).toContainText("How was the visit? Mixed");
+    // The live tally, computed in the browser, with this response counted.
+    await expect(status).toContainText("3 responses");
+    await expect(status.getByText("you", { exact: true })).toBeVisible();
+    await expect(hero.getByText("kind 1069 · encrypted")).toBeVisible();
+
+    const response = published.find((e) => e.kind === 1069)!;
+    expect(response.pubkey).toBe(DEMO_RESULTS_KEY.pubkey);
+    expect(response.tags).toContainEqual(["a", `30168:${DEMO_FORM.pubkey}:${DEMO_FORM.id}`]);
+    // (only multi-character strings: random ciphertext can contain any short one)
+    expect(response.content).not.toContain("Mixed");
+    await expect(hero.locator("pre.ev")).toContainText(response.content.slice(0, 20));
+
+    await hero.getByRole("button", { name: "Send another" }).click();
+    await expect(hero.getByText("kind 30168 · signed")).toBeVisible();
+  });
+
+  test("the Formstr plate tallies responses live, in the browser", async ({ page }) => {
+    const otherKey = "11".repeat(32);
+    await fakeRelays(page, [
+      pageResponse("o0", 150),
+      pageResponse("o0", 5400),
+      pageResponse("o2", 200),
+      pageResponse("o1", 60, otherKey), // not from this page: not counted
+    ]);
+    await page.goto("/");
+    const plate = page.locator("section#suite figure").first();
+    await plate.scrollIntoViewIfNeeded();
+    await expect(plate).toContainText("3 responses · live");
+    await expect(plate).toContainText("2 min ago");
+    await expect(plate).toContainText("1 h ago");
+  });
+
+  test("the Formstr plate counts correctly when most relays fail", async ({ page }) => {
+    // Relays are flaky: here every relay but one errors. The tally must still
+    // be right, not "no responses".
+    const stored = [pageResponse("o0", 150), pageResponse("o2", 200)];
+    await page.routeWebSocket(/^wss:\/\//, (ws) => {
+      if (!ws.url().includes("relay.primal.net")) return ws.close();
+      ws.onMessage((raw) => {
+        const msg = JSON.parse(String(raw));
+        if (msg[0] !== "REQ") return;
+        for (const e of [demo.event, ...stored].filter((e) => matches(e, msg[2] ?? {})))
+          ws.send(JSON.stringify(["EVENT", msg[1], e]));
+        ws.send(JSON.stringify(["EOSE", msg[1]]));
+      });
+    });
+    await page.goto("/");
+    const plate = page.locator("section#suite figure").first();
+    await plate.scrollIntoViewIfNeeded();
+    await expect(plate).toContainText("2 responses · live");
+  });
+
+  test("the Formstr plate says so when the relays are unreachable", async ({ page }) => {
+    await page.routeWebSocket(/^wss:\/\//, (ws) => ws.close());
+    await page.goto("/");
+    const plate = page.locator("section#suite figure").first();
+    await plate.scrollIntoViewIfNeeded();
+    await expect(plate).toContainText("Results unavailable right now");
+  });
+});
+
+/* The page checks the relays for a newer version of the form after load. */
+test.describe("example form stays current", () => {
+  const newer = (sign: (e: object) => object) =>
+    sign({
+      kind: 30168,
+      created_at: demo.event.created_at + 100,
+      content: "",
+      tags: demo.event.tags.map((t: string[]) => (t[0] === "name" ? ["name", "Site visit feedback, revised"] : t)),
+    });
+  async function serveForm(page: Page, event: object) {
+    await page.routeWebSocket(/^wss:\/\//, (ws) => {
+      ws.onMessage((raw) => {
+        const msg = JSON.parse(String(raw));
+        if (msg[0] !== "REQ") return;
+        if (msg[2]?.kinds?.includes(30168)) ws.send(JSON.stringify(["EVENT", msg[1], event]));
+        ws.send(JSON.stringify(["EOSE", msg[1]]));
+      });
+    });
+  }
+
+  test("ignores a newer version with a forged signature", async ({ page }) => {
+    const forged = newer((e) => ({ ...e, pubkey: demo.event.pubkey, id: "ab".repeat(32), sig: "00".repeat(64) }));
+    await serveForm(page, forged);
+    await page.goto("/");
+    await page.waitForTimeout(2500);
+    await expect(page.locator("figure").first().locator(".form-name")).toHaveText("Site visit feedback");
+  });
+
+  test("swaps in a newer, correctly signed version", async ({ page }) => {
+    const key = process.env.FORMSTR_DEMO_FORM_KEY;
+    test.skip(!key, "needs FORMSTR_DEMO_FORM_KEY to sign a test version of the form");
+    const sk = Uint8Array.from(key!.trim().match(/../g)!, (b) => parseInt(b, 16));
+    await serveForm(page, newer((e) => finalizeEvent(e as never, sk)));
+    await page.goto("/");
+    const hero = page.locator("figure").first();
+    await expect(hero.locator(".form-name")).toHaveText("Site visit feedback, revised");
+    await expect(hero.locator("pre.ev")).toContainText("Site visit feedback, revised");
+  });
+});
+
 test.describe("privacy policy", () => {
   test("prerendered page hydrates cleanly", async ({ page }) => {
     const errors = trackErrors(page);
@@ -257,6 +478,7 @@ test.describe("llms.txt", () => {
     expect(body).toContain("npx -y @formstr/mcp");
     expect(body).toContain("packages/mcp/AGENTS.md");
     expect(body).toContain("wss://relay.formstr.app");
+    expect(body).toContain("Site visit feedback");
     for (const host of ["formstr.app", "calendar.formstr.app", "pages.formstr.app", "drive.formstr.app", "mailstr.app"]) {
       expect(body).toContain(`https://${host}`);
     }

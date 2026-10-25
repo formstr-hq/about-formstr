@@ -5,17 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/fetch-repos.mjs && tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist/server && node prerender.js",
+    "build": "node scripts/fetch-repos.mjs && node scripts/fetch-form.mjs && tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist/server && node prerender.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "npm run build && playwright test"
   },
   "dependencies": {
+    "@formstr/sdk": "^0.2.7",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.7.0",
     "@react-three/postprocessing": "^3.0.4",
     "@tailwindcss/typography": "^0.5.19",
+    "bech32": "^2.0.0",
     "lucide-react": "^0.563.0",
+    "nostr-tools": "^2.25.2",
     "postprocessing": "^6.39.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -40,5 +43,8 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

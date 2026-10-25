@@ -9,6 +9,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // Three browser projects plus software WebGL at once starve the preview
+  // server (page loads time out); cap concurrency.
+  workers: 4,
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
@@ -23,6 +26,13 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 900 } } },
     { name: "mobile", use: { ...devices["Pixel 7"], channel: "chrome" } },
+    // Firefox at a narrow phone width: the form used to break here (a Pixel 9a
+    // with a larger display size). Layout and form tests only; no WebGL.
+    {
+      name: "firefox-narrow",
+      use: { browserName: "firefox", viewport: { width: 340, height: 800 }, launchOptions: { args: [] } },
+      grep: /example form|every image|overflows|privacy|storage/,
+    },
   ],
   webServer: {
     command: `npx vite preview --host 127.0.0.1 --port ${PORT} --strictPort`,

@@ -1,0 +1,140 @@
+{
+  "naddr": "naddr1qvzqqqr4mqpzqyaxkc63zw2fq3y0nmzl8w40g3jefqynqlz3ut9l9ehm0d8vrzx2qqyrjvpjxvenvcfcpsj7sk",
+  "fetchedAt": "2026-10-25T09:26:33.502Z",
+  "form": {
+    "id": "902336a8",
+    "blocks": [
+      {
+        "type": "intro",
+        "title": "Site visit feedback",
+        "description": "One question, no names. A demo: answers are encrypted, and this page publishes the key that opens them, so results show here live."
+      },
+      {
+        "type": "section",
+        "id": "default",
+        "questionIds": [
+          "f0"
+        ],
+        "order": 0
+      }
+    ],
+    "name": "Site visit feedback",
+    "fields": {
+      "f0": {
+        "id": "f0",
+        "type": "option",
+        "labelHtml": "How was the visit?",
+        "options": [
+          {
+            "id": "o0",
+            "labelHtml": "Smooth"
+          },
+          {
+            "id": "o1",
+            "labelHtml": "Mixed"
+          },
+          {
+            "id": "o2",
+            "labelHtml": "Rough"
+          }
+        ],
+        "config": {
+          "renderElement": "radioButton",
+          "required": true
+        }
+      }
+    },
+    "fieldOrder": [
+      "f0"
+    ],
+    "settings": {
+      "description": "One question, no names. A demo: answers are encrypted, and this page publishes the key that opens them, so results show here live.",
+      "publicForm": true,
+      "thankYouPage": true,
+      "thankYouText": "Thanks! Your answer is on its way, encrypted to the Formstr team."
+    },
+    "relays": [
+      "wss://relay.formstr.app",
+      "wss://relay.damus.io",
+      "wss://relay.primal.net",
+      "wss://nos.lol",
+      "wss://relay.nostr.wirednet.jp",
+      "wss://nostr-01.yakihonne.com",
+      "wss://relay.snort.social",
+      "wss://relay.nostr.band",
+      "wss://nostr21.com"
+    ],
+    "pubkey": "13a6b6351139490448f9ec5f3baaf446594809307c51e2cbf2e6fb7b4ec188ca"
+  },
+  "html": "<form id=\"form-902336a8\">\n      <div class=\"form-body\">\n        <section class=\"form-section form-intro\">\n          <div class=\"form-name\">Site visit feedback</div>\n          <div class=\"form-description\">One question, no names. A demo: answers are encrypted, and this page publishes the key that opens them, so results show here live.</div>\n        </section>\n        <section class=\"form-section\">\n        <div class=\"option-group\" role=\"radiogroup\" aria-labelledby=\"q-f0\" aria-required=\"true\">\n          <div class=\"option-label\" id=\"q-f0\">How was the visit?</div>\n              <label>\n                <input type=\"radio\" name=\"f0\" value=\"o0\" required />\n                Smooth\n              </label>\n              <label>\n                <input type=\"radio\" name=\"f0\" value=\"o1\" />\n                Mixed\n              </label>\n              <label>\n                <input type=\"radio\" name=\"f0\" value=\"o2\" />\n                Rough\n              </label>\n        </div>\n        </section>\n      </div>\n      <div id=\"submit-container\">\n        <button type=\"submit\" id=\"form-submit-902336a8\">Submit</button>\n      </div>\n    </form>",
+  "event": {
+    "content": "",
+    "created_at": 1792908865,
+    "id": "22ddea83496501f5198b88021269b79c1d824d426099f169e94ab99e925ec0f6",
+    "kind": 30168,
+    "pubkey": "13a6b6351139490448f9ec5f3baaf446594809307c51e2cbf2e6fb7b4ec188ca",
+    "sig": "35aa55aa2ef514d11fbfd4b3393b9992f82e32d15b19b55d93eb1df86708df03f5739141aef8399be169f62590ee5d84cd13835d8180c3e9f1f5a8306bc1eddc",
+    "tags": [
+      [
+        "d",
+        "902336a8"
+      ],
+      [
+        "name",
+        "Site visit feedback"
+      ],
+      [
+        "settings",
+        "{\"description\":\"One question, no names. A demo: answers are encrypted, and this page publishes the key that opens them, so results show here live.\",\"publicForm\":true,\"thankYouPage\":true,\"thankYouText\":\"Thanks! Your answer is on its way, encrypted to the Formstr team.\"}"
+      ],
+      [
+        "field",
+        "f0",
+        "option",
+        "How was the visit?",
+        "[[\"o0\",\"Smooth\"],[\"o1\",\"Mixed\"],[\"o2\",\"Rough\"]]",
+        "{\"renderElement\":\"radioButton\",\"required\":true}"
+      ],
+      [
+        "t",
+        "public"
+      ],
+      [
+        "relay",
+        "wss://relay.formstr.app"
+      ],
+      [
+        "relay",
+        "wss://relay.damus.io"
+      ],
+      [
+        "relay",
+        "wss://relay.primal.net"
+      ],
+      [
+        "relay",
+        "wss://nos.lol"
+      ],
+      [
+        "relay",
+        "wss://relay.nostr.wirednet.jp"
+      ],
+      [
+        "relay",
+        "wss://nostr-01.yakihonne.com"
+      ],
+      [
+        "relay",
+        "wss://relay.snort.social"
+      ],
+      [
+        "relay",
+        "wss://relay.nostr.band"
+      ],
+      [
+        "relay",
+        "wss://nostr21.com"
+      ]
+    ]
+  }
+}

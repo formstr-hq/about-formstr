@@ -86,28 +86,13 @@ section[id] {
 
   /* ---- figures ---- */
   .figcap {
-    display: flex;
-    gap: 16px;
     padding-top: 14px;
     font-size: 13.5px;
     line-height: 1.5;
     color: var(--color-mute);
   }
-  .figcap b {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: 11.5px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-ink);
-    white-space: nowrap;
-    padding-top: 2px;
-  }
   .night .figcap {
     color: var(--color-night-mute);
-  }
-  .night .figcap b {
-    color: var(--color-night-text);
   }
 
   /* Product window chrome used by every plate. */
@@ -121,7 +106,7 @@ section[id] {
       0 20px 40px -24px rgb(0 0 0 / 0.18);
   }
 
-  /* ---- Fig. 1: the event listing ---- */
+  /* ---- Hero: the event listing ---- */
   .ev {
     margin: 0;
     font-family: var(--font-mono);
@@ -130,6 +115,18 @@ section[id] {
     color: #c9c9c5;
     white-space: pre;
     overflow-x: auto;
+  }
+  /* On phones, wrap long lines instead of scrolling them out of view, so
+     the field markers at the end of each line stay visible. */
+  @media (max-width: 639px) {
+    .ev {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .ev .hl {
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+    }
   }
   .ev .k { color: #8d8d89; }
   .ev .s { color: #f1f1ee; }
@@ -153,17 +150,143 @@ section[id] {
     line-height: 1;
   }
 
-  /* Radio options in the form vignette. */
-  .opt::before {
-    content: "";
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 1.5px solid var(--color-faint);
-    box-sizing: border-box;
+  /* ---- Hero: the example form (real, rendered by @formstr/sdk) ----
+     The markup is @formstr/sdk's own neutral HTML (embedded verbatim, see
+     scripts/fetch-form.mjs); these rules style its stable class names.
+     Questions are numbered with a counter so the markers always match the
+     field tags in the event panel, whatever fields the form has. */
+  .demo-form .form-body {
+    counter-reset: q;
   }
-  .opt[data-on]::before {
-    border: 4px solid var(--color-forms);
+  .demo-form .form-name {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .demo-form .form-description {
+    margin-top: 6px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--color-mute);
+  }
+  .demo-form .form-section:not(.form-intro) {
+    display: grid;
+  }
+  /* question labels (text fields) and radio-group titles */
+  .demo-form label[for],
+  .demo-form .option-label {
+    position: relative;
+    counter-increment: q;
+    margin: 22px 0 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .demo-form label[for]::before,
+  .demo-form .option-label::before {
+    content: counter(q);
+    position: absolute;
+    left: -22px;
+    top: 1px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-forms);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+  }
+  .demo-form input[type="text"],
+  .demo-form textarea {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    background: #fff;
+    padding: 9px 12px;
+    font: inherit;
+    font-size: 14px;
+    color: var(--color-ink);
+  }
+  .demo-form textarea {
+    resize: vertical;
+    min-height: 76px;
+    line-height: 1.5;
+  }
+  .demo-form input[type="text"]:focus-visible,
+  .demo-form textarea:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: -1px;
+  }
+  /* Options: as many per row as fit, at least 9.5rem each, wrapping on
+     narrow screens (three or four fixed-width options overflowed at
+     ~340px in Firefox). */
+  .demo-form .option-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: 8px;
+  }
+  .demo-form .option-group .option-label {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+  .demo-form .option-group > label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    padding: 9px 12px;
+    font-size: 13.5px;
+    line-height: 1.3;
+    cursor: pointer;
+  }
+  .demo-form .option-group > label:has(:checked) {
+    border-color: var(--color-forms);
+    background: #fff6f0;
+  }
+  .demo-form .option-group > label:has(:focus-visible) {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 1px;
+  }
+  /* The radio dot is the input itself, at a fixed size, so a tight row
+     can never squash it into an oval. */
+  .demo-form input[type="radio"] {
+    appearance: none;
+    flex: none;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    border: 1.5px solid var(--color-faint);
+    border-radius: 50%;
+  }
+  .demo-form input[type="radio"]:checked {
+    border: 4.5px solid var(--color-forms);
+  }
+  .demo-form #submit-container {
+    margin-top: 22px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .demo-form button[type="submit"] {
+    border-radius: 4px;
+    background: var(--color-ink);
+    color: #fff;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .demo-form button[type="submit"]:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+  .demo-form button[type="submit"]:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
   }
 
   /* ---- Pages vignette: live cursors ---- */

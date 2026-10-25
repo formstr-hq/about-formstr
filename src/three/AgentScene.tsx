@@ -5,7 +5,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import * as THREE from "three";
 
 /* ------------------------------------------------------------------ */
-/* Fig. 2 — the agent. One robot, lit like a product shot: it waves   */
+/* The agent figure. One robot, lit like a product shot: it waves   */
 /* once when it first appears, then idles and follows the cursor.     */
 /*                                                                    */
 /* Kept deliberately cheap: a 160 KB meshopt model holding only the   */
