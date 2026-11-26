@@ -1,4 +1,12 @@
-# React + TypeScript + Vite
+# About Formstr
+
+The prerendered site at [about.formstr.app](https://about.formstr.app/) introduces Formstr, Calendar, Pages, Sheets, Drive and Mailstr. The [Sheets](https://sheets.formstr.app/) showcase uses a local screenshot of a fictional workbook in the live editor. Product descriptions and protocol details can be checked against the [Sheets source](https://github.com/formstr-hq/sheets).
+
+Use Node.js 22 or newer. Run `npm ci` to install dependencies, `npm run dev` for the dev server, and `npm run build` to generate the static site in `dist/`.
+
+Run `npm run lint` for static checks. Install the test browsers with `npx playwright install chromium firefox`, then run `npm run test:e2e` to exercise the production build.
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

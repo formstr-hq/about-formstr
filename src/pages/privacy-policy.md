@@ -1,10 +1,10 @@
 # Privacy Policy
 
-**Last updated: June 7, 2026**
+**Last updated: November 26, 2026**
 
 ## Summary
 
-Formstr does not collect, store, track, or share your personal data. We have no analytics, no telemetry, and no third-party tracking. All your content - forms, events, documents, files - is generated on your device and stored on servers you choose. The only exception is paid features, where your pseudonymous public key is stored on our servers to verify access - see the Paid Features section below.
+Formstr does not collect, store, track, or share your personal data. We have no analytics, no telemetry, and no third-party tracking. Forms, events, documents, spreadsheets and files are created on your device. Each app uses relays or storage servers to make your work available across devices. For paid features, your pseudonymous public key is stored on our servers to verify access - see the Paid Features section below.
 
 ---
 
@@ -12,7 +12,7 @@ Formstr does not collect, store, track, or share your personal data. We have no 
 
 Formstr is built on the Nostr protocol. Your identity is a pair of cryptographic keys that you own. Formstr never sees or stores your private key.
 
-All content you create is encrypted on your device before it leaves. It is sent to Nostr relays - independent, community-run servers - that you select. Formstr does not run or control these relays. If you explicitly make something public, it becomes readable by anyone on the network.
+Private content is encrypted before it reaches a relay. Sheets sends encrypted workbook snapshots to its default relays, including the Formstr Relay, and to relays listed in your Nostr profile's relay list. If you explicitly make something public, it becomes readable by anyone on the network.
 
 ---
 
@@ -31,6 +31,8 @@ All content you create is encrypted on your device before it leaves. It is sent 
 
 To keep you signed in and remember your preferences, Formstr saves a small amount of information locally on your device - your public key, your preferred relay servers, and app settings. You can remove this at any time by clearing the app's data.
 
+Sheets also caches a readable copy of your workbooks and their access keys in your browser.
+
 ---
 
 ## Paid Features
@@ -41,7 +43,7 @@ Some Formstr features - such as paid forms, custom short links, and other premiu
 
 ## Third-Party Services
 
-The Nostr relays and storage servers you connect to are operated by independent third parties and governed by their own privacy policies.
+Third-party Nostr relays and storage servers are governed by their operators' privacy policies.
 
 ---
 

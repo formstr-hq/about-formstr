@@ -32,7 +32,10 @@ export function queryRelay(relay, filter, ms = 6000) {
     const events = [];
     let ws;
     let answered = false;
+    let finished = false;
     const finish = () => {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
       try {
         ws?.close();

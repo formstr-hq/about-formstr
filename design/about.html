@@ -22,7 +22,7 @@
     --paper: #f4f4f3; --sheet: #fbfbfa; --white: #fff;
     --ink: #0b0b0c; --ink-2: #3b3b39; --mute: #6c6c69; --faint: #a3a3a0;
     --line: #dededb; --line-2: #e9e9e6;
-    --forms: #f76b15; --cal: #3b82f6; --pages: #10b981; --drive: #8b5cf6; --mail: #e5484d;
+    --forms: #f76b15; --cal: #3b82f6; --pages: #10b981; --sheets: color-mix(in srgb, #ff5a36 70%, var(--ink)); --drive: #8b5cf6; --mail: #e5484d;
     --sans: "IBM Plex Sans", system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   }
@@ -254,9 +254,9 @@
 <!-- ============ HERO ============ -->
 <div class="sheet">
   <div class="row hero">
-    <div class="kicker"><span class="cap">Formstr · open-source work tools on Nostr</span><span class="cap">Forms · Calendar · Pages · Drive · Mailstr</span></div>
+    <div class="kicker"><span class="cap">Formstr · open-source work tools on Nostr</span><span class="cap">Forms · Calendar · Pages · Sheets · Drive · Mailstr</span></div>
     <h1>Work tools that don't need our permission.</h1>
-    <p class="sub">Forms, documents, calendars, files and email, built on Nostr, an open protocol. What you make is signed with your key and encrypted on your device. Any app or AI agent you trust can work with it directly. There's no API to apply for and no integration to wait on.</p>
+    <p class="sub">Forms, documents, spreadsheets, calendars, files and email, built on Nostr, an open protocol. Private work is encrypted before it reaches a relay. With a Nostr key, an agent can read form responses, schedule a meeting or edit a shared document. There's no API to apply for and no integration to wait on.</p>
     <div class="actions">
       <a class="btn btn-ink" href="#suite" style="justify-content:space-between">Explore the suite <span>↓</span></a>
       <div class="cmd"><div><span>$ </span>npx -y @formstr/mcp</div><em>Connect an agent</em></div>
@@ -303,7 +303,7 @@
   <div class="sheet">
     <div class="row sh">
       <span class="no cap">01 — The suite</span>
-      <h2>Five apps. One key. Everything in an open format.</h2>
+      <h2>Six apps. One key. Everything in an open format.</h2>
       <p class="lede">Each app stands on its own. They share an identity and a data format, so they also work together, and with anything else that speaks Nostr. Each is listed below with the event kind it stores your work as.</p>
     </div>
 
@@ -386,6 +386,21 @@
       </figure>
     </div>
 
+    <!-- Sheets -->
+    <div class="row entry" style="--c:var(--sheets)">
+      <div class="meta">
+        <div class="kind"><i></i>Spreadsheets</div>
+        <div class="kind-n">kind 33460 · 33461 · 33462</div>
+        <h3>Sheets</h3>
+        <p>Track orders across worksheets, calculate totals with formulas and share a workbook with viewers or editors. Sheets encrypts each snapshot before sending it to your relays.</p>
+        <dl><div><dt>Address</dt><dd>sheets.formstr.app</dd></div><div><dt>File formats</dt><dd>XLSX · CSV</dd></div><div><dt>Source</dt><dd><a href="https://github.com/formstr-hq/sheets">sheets</a></dd></div></dl>
+        <a class="go" href="https://sheets.formstr.app/">Open Sheets ↗</a>
+      </div>
+      <figure class="plate">
+        <div class="art" style="padding:40px 0 0 40px"><div class="win" style="border-radius:8px 0 0 0;border-right:0;border-bottom:0"><div class="bar"><i></i><i></i><i></i><span>sheets.formstr.app</span></div><img src="/public/images/previews/sheets.webp" alt="Q4 supplier tracker in Sheets, with the formula for total orders selected" /></div></div>
+      </figure>
+    </div>
+
     <!-- Drive -->
     <div class="row entry" style="--c:var(--drive)">
       <div class="meta">
@@ -439,8 +454,8 @@
     </div>
     <div class="row agent-body">
       <div class="copy">
-        <p>Most software keeps programs out until someone signs off: a developer account, an API key, a review, a scope. Nostr doesn't work that way. Every app reads and writes the same signed events over the same open protocol, so an agent with a key can do what any other client does. It can read a form's responses, put a meeting on a calendar or edit a shared document.</p>
-        <p><span class="mono" style="color:#f1f1ee">@formstr/mcp</span> packages that for MCP hosts such as Claude, Cursor and Goose: more than seventy tools across the suite, set up with one command.</p>
+        <p>Most software keeps programs out until someone signs off: a developer account, an API key, a review, a scope. Nostr doesn't work that way. Nostr clients read and write signed events over an open protocol. An agent can read a form's responses, put a meeting on a calendar or edit a shared document.</p>
+        <p><span class="mono" style="color:#f1f1ee">@formstr/mcp</span> packages that for MCP hosts such as Claude, Cursor and Goose: more than seventy tools for forms, calendars, documents, files, mail, polls and kanban boards.</p>
       </div>
     </div>
     <div class="row agent-figs">
@@ -488,15 +503,15 @@
     <div class="row sh">
       <span class="no cap">03 — Security</span>
       <h2>Security you can check, not just trust.</h2>
-      <p class="lede">Encryption happens in your browser before anything is sent. Relays store ciphertext and signatures. They can't read your content, and neither can we. The code that does this is open for your security team to review.</p>
+      <p class="lede">Private content is encrypted before it reaches a relay. Relays can verify a signature without reading the encrypted content. The code that does this is open for your security team to review.</p>
     </div>
     <div class="row sec-grid">
       <dl class="sec-table">
         <div><dt>Identity</dt><dd>A key pair, not an account. Sign in with a browser extension, a remote signer (<code>NIP-46</code>) or a local key.</dd></div>
-        <div><dt>Encryption</dt><dd><code>NIP-44</code>, performed on your device. Shared items are delivered with <code>NIP-59</code> gift wraps.</dd></div>
-        <div><dt>Data location</dt><dd>Relays you choose. Run your own to keep data inside your network.</dd></div>
+        <div><dt>Encryption</dt><dd><code>NIP-44</code>, performed on your device. Sheets sends encrypted access grants. Mailstr uses <code>NIP-59</code> gift wraps for mail.</dd></div>
+        <div><dt>Data location</dt><dd>Sheets combines default relays with relays from your Nostr relay list.</dd></div>
         <div><dt>Files</dt><dd>Blossom servers you choose, public or self-hosted.</dd></div>
-        <div><dt>Audit trail</dt><dd>Every change is a signed event. Each one says which key, person or agent, made it.</dd></div>
+        <div><dt>Signatures</dt><dd>A signed event identifies its signing key. Sheets editors sign snapshots with the workbook’s shared edit key.</dd></div>
         <div><dt>Tracking</dt><dd>No analytics and no advertising. <a href="#">Privacy policy</a></dd></div>
       </dl>
       <figure class="fig-sec">
@@ -520,7 +535,7 @@ c4Vh7LpXs0dF3gJ6nQ9uY2iO5wT8rA1zC4vB7eH0kM3pS6…8B=="</pre></div>
     <div class="row sh">
       <span class="no cap">04 — Source</span>
       <h2>Built in public, from the first commit.</h2>
-      <p class="lede">Every app is open source and developed in the open on GitHub. Read the code, file an issue or run it yourself.</p>
+      <p class="lede">All six apps are developed in public on GitHub. Read the code, explore recent changes or file an issue.</p>
     </div>
     <div class="row">
       <div class="repos">
@@ -529,6 +544,7 @@ c4Vh7LpXs0dF3gJ6nQ9uY2iO5wT8rA1zC4vB7eH0kM3pS6…8B=="</pre></div>
         <a href="#"><span class="name"><span class="dot" style="--c:var(--cal)"></span>nostr-calendar</span><span class="what">Calendar, events and booking pages</span><span class="num">19</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
         <a href="#"><span class="name"><span class="dot" style="--c:#ec4899"></span>nostr-polls</span><span class="what">Polls on Nostr</span><span class="num">18</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
         <a href="#"><span class="name"><span class="dot" style="--c:var(--pages)"></span>nostr-docs</span><span class="what">Pages, collaborative documents</span><span class="num">7</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
+        <a href="https://github.com/formstr-hq/sheets"><span class="name"><span class="dot" style="--c:var(--sheets)"></span>sheets</span><span class="what">Sheets, spreadsheets on Nostr</span><span class="num">—</span><span class="num">—</span><span>↗</span></a>
         <a href="#"><span class="name"><span class="dot" style="--c:var(--drive)"></span>formstr-drive</span><span class="what">Drive, files on Blossom</span><span class="num">5</span><span class="num">Oct 22, 2026</span><span>↗</span></a>
         <a href="#"><span class="name"><span class="dot" style="--c:var(--mail)"></span>nail</span><span class="what">Mailstr, the email ⇄ Nostr bridge</span><span class="num">1</span><span class="num">Oct 21, 2026</span><span>↗</span></a>
         <a href="#"><span class="name"><span class="dot"></span>common-packages</span><span class="what">@formstr/mcp and the shared SDKs</span><span class="num">—</span><span class="num">Oct 22, 2026</span><span>↗</span></a>

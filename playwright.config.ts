@@ -1,8 +1,11 @@
-import { defineConfig, devices } from "@playwright/test";
+import { chromium, defineConfig, devices } from "@playwright/test";
+import { existsSync } from "node:fs";
 
 /* End-to-end tests run against the production build (prerendered HTML +
    hydration), served by `vite preview`. Build first: `npm run test:e2e`. */
 const PORT = 4176;
+// Use Playwright's matching Chromium when installed, or the system Chrome.
+const channel = existsSync(chromium.executablePath()) ? "chromium" : "chrome";
 
 export default defineConfig({
   testDir: "e2e",
@@ -21,11 +24,9 @@ export default defineConfig({
       args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
     },
   },
-  // Run in the installed Google Chrome (set per project: device presets
-  // override a top-level channel), so no separate browser download is needed.
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"], channel: "chrome", viewport: { width: 1440, height: 900 } } },
-    { name: "mobile", use: { ...devices["Pixel 7"], channel: "chrome" } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"], channel, viewport: { width: 1440, height: 900 } } },
+    { name: "mobile", use: { ...devices["Pixel 7"], channel } },
     // Firefox at a narrow phone width: the form used to break here (a Pixel 9a
     // with a larger display size). Layout and form tests only; no WebGL.
     {

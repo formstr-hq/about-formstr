@@ -40,6 +40,7 @@ const apps = [
   { name: "Formstr", what: "Forms", url: "https://formstr.app", color: "var(--color-forms)" },
   { name: "Calendar", what: "Events", url: "https://calendar.formstr.app", color: "var(--color-cal)" },
   { name: "Pages", what: "Documents", url: "https://pages.formstr.app", color: "var(--color-pages)" },
+  { name: "Sheets", what: "Spreadsheets", url: "https://sheets.formstr.app", color: "var(--color-sheets)" },
   { name: "Drive", what: "Files", url: "https://drive.formstr.app", color: "var(--color-drive)" },
   { name: "Mailstr", what: "Email", url: "https://mailstr.app", color: "var(--color-mail)" },
 ];
@@ -60,6 +61,7 @@ const repos = [
   { name: "nostr-forms", what: "Formstr: encrypted forms and surveys", color: "var(--color-forms)" },
   { name: "nostr-calendar", what: "Calendar: events and booking pages", color: "var(--color-cal)" },
   { name: "nostr-docs", what: "Pages: collaborative documents", color: "var(--color-pages)" },
+  { name: "sheets", what: "Sheets: spreadsheets on Nostr", color: "var(--color-sheets)" },
   { name: "formstr-drive", what: "Drive: files on Blossom", color: "var(--color-drive)" },
   { name: "nail", what: "Mailstr: the email ⇄ Nostr bridge", color: "var(--color-mail)" },
   { name: "nostr-polls", what: "Polls on Nostr", color: "var(--color-polls)" },
@@ -161,9 +163,15 @@ function CopyCommand({ dark = false }: { dark?: boolean }) {
 
 function Launcher() {
   const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        trigger.current?.focus();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
@@ -171,6 +179,7 @@ function Launcher() {
     <div className="relative">
       <button
         type="button"
+        ref={trigger}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className="inline-flex h-[34px] items-center gap-1.5 rounded-[4px] bg-ink px-3.5 text-[13.5px] font-medium text-white"
@@ -479,7 +488,10 @@ function DemoForm({
 function fetchFromRelay(relay: string, id: string, ms = 5000): Promise<SignedEvent | null> {
   return new Promise((resolve) => {
     let ws: WebSocket;
+    let finished = false;
     const done = (ev: SignedEvent | null) => {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
       try {
         ws?.close();
@@ -763,7 +775,7 @@ function Hero() {
       <Row className="pt-16 pb-16 lg:pt-24">
         <div className="mb-10 hidden justify-between lg:col-span-12 lg:flex">
           <span className="cap">Formstr · open-source work tools on Nostr</span>
-          <span className="cap">Forms · Calendar · Pages · Drive · Mailstr</span>
+          <span className="cap">Forms · Calendar · Pages · Sheets · Drive · Mailstr</span>
         </div>
         <span className="cap mb-6 lg:hidden">Formstr · open-source work tools on Nostr</span>
 
@@ -771,9 +783,9 @@ function Hero() {
           Work tools for people and their agents.
         </h1>
         <p className="mt-8 text-[17px] leading-[1.6] text-ink-2 sm:text-[19px] lg:col-span-6 lg:mt-9">
-          Forms, documents, calendars, files and email, built on Nostr, an open protocol. Your work is signed with your
-          key and encrypted on your device. The people and AI agents you trust can work with it directly. There are no
-          API keys to provision and no integrations to maintain.
+          Forms, documents, spreadsheets, calendars, files and email, built on Nostr, an open protocol. Apps publish
+          signed events and encrypt private content before it reaches a relay. With a Nostr key, an agent can read form responses, schedule a
+          meeting or edit a shared document. There are no API keys to provision and no integrations to maintain.
         </p>
         <div className="mt-8 flex flex-col gap-3 self-end lg:col-span-5 lg:col-start-8 lg:mt-0">
           <a
@@ -831,7 +843,7 @@ type EntryProps = {
   kinds: string;
   name: string;
   body: string;
-  specs: [string, string][];
+  specs: [string, ReactNode][];
   url: string;
   plate: ReactNode;
   flush?: boolean;
@@ -1011,6 +1023,21 @@ function PagesPlate() {
   );
 }
 
+function SheetsPlate() {
+  return (
+    <Win url="sheets.formstr.app" flush>
+      <picture>
+        <source media="(max-width: 639px)" srcSet="/images/previews/sheets-mobile.webp" width={600} height={690} />
+        <img
+          src="/images/previews/sheets.webp" width={1230} height={668} loading="lazy"
+          alt="Q4 supplier tracker in Sheets. The selected Orders total uses =SUM(B2:B5) and shows 90 orders, with 83 delivered and 7 pending."
+          className="block h-auto w-full"
+        />
+      </picture>
+    </Win>
+  );
+}
+
 function DrivePlate() {
   const files = [
     ["Halden-contract-2027.pdf", "PDF", "#e5484d", "1.8 MB", "blossom.yourco.internal", "Oct 21"],
@@ -1072,7 +1099,7 @@ function Suite() {
       <div className="sheet py-24 lg:py-[120px]">
         <SectionHead
           no="01 — The suite"
-          title="Five apps. One key. Everything in an open format."
+          title="Six apps. One key. Everything in an open format."
           lede="Each app stands on its own. They share an identity and a data format, so they also work together, and with anything else that speaks Nostr. Each one is listed with the event kinds it stores your work as."
         />
         <Entry
@@ -1125,6 +1152,21 @@ function Suite() {
           ]}
           url="https://pages.formstr.app"
           plate={<PagesPlate />}
+        />
+        <Entry
+          color="var(--color-sheets)"
+          kindLabel="Spreadsheets"
+          kinds="kind 33460 · 33461 · 33462"
+          name="Sheets"
+          body="Track orders across worksheets, calculate totals with formulas and share a workbook with viewers or editors. Sheets encrypts each snapshot before sending it to your relays."
+          specs={[
+            ["Address", "sheets.formstr.app"],
+            ["File formats", "XLSX · CSV"],
+            ["Source", <a href={`${GITHUB}/sheets`} className="underline underline-offset-4">sheets</a>],
+          ]}
+          url="https://sheets.formstr.app/"
+          flush
+          plate={<SheetsPlate />}
         />
         <Entry
           color="var(--color-drive)"
@@ -1422,14 +1464,14 @@ function Agents() {
           <div className="grid gap-[18px] text-[17px] leading-[1.65] text-[#b9b9b5] lg:col-span-6 lg:col-start-4 lg:-mt-6">
             <p>
               Most software keeps programs out until someone signs off: a developer account, an API key, a review, a
-              scope. Nostr doesn't work that way. Every app reads and writes the same signed events over the same open
-              protocol, so an agent with a key can do what any other client does. It can read a form's responses, put a
+              scope. Nostr clients read and write signed events over an open protocol. An agent can read a form's responses, put a
               meeting on a calendar or edit a shared document. And it doesn't have to wait to be issued that key: it
               can create its own identity in one step, or act for you through a remote signer.
             </p>
             <p>
               <span className="font-mono text-[#f1f1ee]">@formstr/mcp</span> packages that for MCP hosts such as
-              Claude, Cursor and Goose: more than seventy tools across the suite, set up with one command.
+              Claude, Cursor and Goose. One command sets up more than seventy tools for forms, calendars, documents,
+              files, mail, polls and kanban boards.
             </p>
           </div>
         </Row>
@@ -1523,7 +1565,7 @@ function Storage() {
         <SectionHead
           no="03 — Storage"
           title="Hosted or self-hosted. Encrypted either way."
-          lede="You decide where your work lives: on your device, on a relay you run, on relays you pick, or on ours. Whichever you choose, it's encrypted on your device first, so the host only ever stores ciphertext."
+          lede="Storage options vary by app. Explore where a private event can live and who can read it. When you publish one, its content is encrypted before it reaches the relay."
         />
         <Row className="items-stretch">
           <figure className="lg:col-span-12">
@@ -1556,8 +1598,8 @@ function Storage() {
                   ))}
                 </div>
                 <p className="mt-5 text-[13px] leading-relaxed text-mute">
-                  New accounts start with a default list, the Formstr Relay plus public relays. Change it in any app's
-                  settings.
+                  Sheets caches workbooks in your browser and syncs them to the Formstr Relay, public relays and
+                  relays from your Nostr relay list.
                 </p>
               </fieldset>
 
@@ -1614,8 +1656,8 @@ function Storage() {
               </div>
             </div>
             <Figcap>
-              Pick any option: what gets stored is the same ciphertext, readable only with your key. You can mix
-              options, too, such as your own relay plus a public one for redundancy.
+              An encrypted event can be stored on more than one relay. Each relay holds the same ciphertext,
+              readable by anyone with the decryption key.
             </Figcap>
           </figure>
         </Row>
@@ -1632,7 +1674,7 @@ function Security() {
   const code = (t: string) => <code className="font-mono text-[13px] text-ink">{t}</code>;
   const rows: [string, ReactNode][] = [
     ["Identity", <>A key pair, not an account. Sign in with a browser extension, a remote signer ({code("NIP-46")}) or a local key.</>],
-    ["Encryption", <>{code("NIP-44")}, performed on your device. Shared items are delivered with {code("NIP-59")} gift wraps.</>],
+    ["Encryption", <>Sheets encrypts workbook snapshots with {code("NIP-44")} and sends collaborators encrypted access grants. Mailstr uses {code("NIP-59")} gift wraps for mail.</>],
     [
       "Data location",
       <>
@@ -1644,7 +1686,7 @@ function Security() {
       </>,
     ],
     ["Files", "Blossom servers you choose, public or self-hosted."],
-    ["Audit trail", "Every change is a signed event. Each one says which key, person or agent, made it."],
+    ["Signatures", "A signed event identifies its signing key. In Sheets, editors sign workbook snapshots with the workbook’s shared edit key."],
     [
       "Tracking",
       <>
@@ -1661,7 +1703,7 @@ function Security() {
         <SectionHead
           no="04 — Security"
           title="Security you can check, not just trust."
-          lede="Encryption happens in your browser before anything is sent. Relays store ciphertext and signatures. They can't read your content, and neither can we. The code that does this is open for your security team to review."
+          lede="Private content is encrypted before it reaches a relay. Relays can verify a signature without reading the encrypted content. The code that does this is open for your security team to review."
         />
         <Row className="items-start">
           <dl className="border-t border-ink lg:col-span-6">
@@ -1713,7 +1755,7 @@ function Source() {
         <SectionHead
           no="05 — Source"
           title="Built in public, from the first commit."
-          lede="Every app is open source and developed in the open on GitHub. Read the code, file an issue or run it yourself."
+          lede="All six apps are developed in public on GitHub. Read the code, explore recent changes or file an issue."
         />
         <Row>
           <div className="border-t border-ink lg:col-span-12">

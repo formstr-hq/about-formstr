@@ -15,7 +15,7 @@ To view the prototype, run `python3 -m http.server 4174` from the repo root and 
 | `about.html` | The full page, static HTML/CSS |
 | `agent-scene.js` | Fig. 2: the robot, in plain three.js |
 | `assets/` | `robot.glb` (meshopt, ~76 KB gzipped), the Calendar design render, the Mailstr inbox |
-| `shots/` | `about-hero.png`, `about-full.png` |
+| `shots/` | Original prototype captures and desktop and mobile screenshots of the Sheets showcase |
 
 ## Concept: a spec sheet for the suite
 
@@ -32,10 +32,10 @@ Everything shown is a real artifact:
   `agent/src/services/forms/fieldCodec.ts`. This one figure carries the pitch: the data is
   open, so agents need no API.
 - **01 Suite** is a catalog. Each app is listed by the event kinds it stores
-  (Forms 30168/1069, Calendar 31923/32678, Pages 33457, Drive 34578, Mailstr 1301 in a NIP-59
-  wrap, all taken from common-packages), with a short spec list and a product plate.
+  (Forms 30168/1069, Calendar 31923/32678, Pages 33457, Sheets 33460/33461/33462, Drive 34578, Mailstr 1301 in a NIP-59
+  wrap), with a short spec list and a product plate.
   The Calendar plate is the team's own hi-fi design file (`nostr-calendar/designs/redesign/01`).
-  Mailstr is the real inbox. Forms, Pages and Drive are HTML vignettes of the real UI with
+  Sheets shows a fictional supplier tracker in the real editor. Mailstr is the real inbox. Forms, Pages and Drive are HTML vignettes of the real UI with
   believable content. The Pages plate shows a person and an agent editing together.
 - **02 Agents** (dark): "Agents don't need an integration. They need a key." It pairs the
   robot (Fig. 2) with a realistic `@formstr/mcp` session (Fig. 3) using real tool names and
@@ -50,11 +50,7 @@ Everything else is ink on paper.
 
 ## Notes
 
-- The old copy said "every repo is MIT licensed", but on GitHub only nostr-forms,
-  nostr-calendar, nostr-polls, formstr-drive, nail and ncache carry a license. nostr-docs and
-  common-packages don't. The page now says only "open source" for those two. Adding LICENSE files
-  would let it say more.
-- Polls (nostr-polls) appears in the source table but not the catalog. Add a sixth entry if
-  it should be featured.
+- License labels come from the product repositories. Sheets has no declared repository license.
+- Polls (nostr-polls) appears in the source table but not the catalog. The six product showcases follow the launcher order.
 - 3D cost: the robot is the only model. It loads after the page and animates only while
   on screen. No HDR, fonts or post-processing.

@@ -5,6 +5,14 @@ import { finalizeEvent, nip44 } from "nostr-tools";
 import { DEMO_FORM, DEMO_RESULTS_KEY } from "../src/lib/form.mjs";
 
 const demo = JSON.parse(fs.readFileSync(new URL("../src/data/demo-form.json", import.meta.url), "utf8"));
+const products = [
+  ["Formstr", "formstr.app"],
+  ["Calendar", "calendar.formstr.app"],
+  ["Pages", "pages.formstr.app"],
+  ["Sheets", "sheets.formstr.app"],
+  ["Drive", "drive.formstr.app"],
+  ["Mailstr", "mailstr.app"],
+] as const;
 
 /* Collect anything the page reports as broken: uncaught exceptions and
    console errors (React hydration mismatches surface as both). */
@@ -58,6 +66,7 @@ test.describe("home", () => {
 
   test("each section is reachable from the masthead", async ({ page, isMobile }) => {
     test.skip(isMobile, "section links are desktop-only; phones scroll");
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     for (const [label, id] of [
       ["Suite", "suite"],
@@ -73,13 +82,41 @@ test.describe("home", () => {
 
   test("app launcher lists every app and closes on Escape", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Open the apps" }).click();
-    for (const host of ["formstr.app", "calendar.formstr.app", "pages.formstr.app", "drive.formstr.app", "mailstr.app"]) {
-      await expect(page.locator(`header a[href="https://${host}"]`)).toBeVisible();
+    const launcher = page.getByRole("button", { name: "Open the apps" });
+    await launcher.focus();
+    await page.keyboard.press("Enter");
+    for (const [name, host] of products) {
+      await page.keyboard.press("Tab");
+      const link = page.locator(`header a[href="https://${host}"]`);
+      await expect(link).toBeFocused();
+      await expect(link).toContainText(name);
     }
     await expect(page.locator('header a[href*="npmjs.com/package/@formstr/mcp"]')).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.locator('header a[href="https://formstr.app"]')).toBeHidden();
+    await expect(launcher).toBeFocused();
+  });
+
+  test("prerendered suite includes the Sheets workbook and all six product links", async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    try {
+      const page = await context.newPage();
+      await page.goto("/");
+      const suite = page.locator("#suite");
+      await expect(suite.getByRole("heading", { level: 2 })).toHaveText("Six apps. One key. Everything in an open format.");
+      await expect(suite.getByRole("heading", { level: 3 })).toHaveText(products.map(([name]) => name));
+      for (const [name, host] of products) {
+        const link = suite.getByRole("link", { name: `Open ${name}`, exact: true });
+        expect(new URL((await link.getAttribute("href"))!).host).toBe(host);
+      }
+      await expect(suite.getByRole("link", { name: "Open Sheets" })).toHaveAttribute("href", "https://sheets.formstr.app/");
+      await expect(suite.getByText("kind 33460 · 33461 · 33462")).toBeVisible();
+      const preview = suite.getByRole("img", { name: /Q4 supplier tracker/ });
+      await preview.scrollIntoViewIfNeeded();
+      await expect.poll(() => preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    } finally {
+      await context.close();
+    }
   });
 
   test("copy button puts the MCP command on the clipboard", async ({ page, context, browserName }) => {
@@ -125,7 +162,8 @@ test.describe("home", () => {
   test("source table links every repository", async ({ page }) => {
     await page.goto("/");
     const rows = page.locator('section#source a[href^="https://github.com/formstr-hq/"]');
-    await expect(rows).toHaveCount(7);
+    await expect(rows).toHaveCount(8);
+    await expect(rows.filter({ hasText: "sheets" })).toHaveAttribute("href", "https://github.com/formstr-hq/sheets");
   });
 
   test("nothing overflows the viewport sideways", async ({ page }) => {
@@ -202,17 +240,18 @@ test.describe("agent thoughts", () => {
   };
 
   test("each thought links to the app it offers", async ({ page }) => {
+    // Check the link rotation independently of the GPU and wall-clock speed.
+    await page.addInitScript(() => Object.defineProperty(navigator, "connection", { value: { saveData: true } }));
+    await page.clock.install();
     await page.goto("/");
     await agentFigure(page).scrollIntoViewIfNeeded();
-    const seen = new Set<string>();
-    for (let i = 0; i < 6 && seen.size < 5; i++) {
-      const app = (await thought(page).getAttribute("data-thought"))!;
-      await expect(thought(page)).toHaveAttribute("href", apps[app]);
-      await expect(thought(page)).toHaveAttribute("target", "_blank");
-      seen.add(app);
-      await expect(thought(page)).not.toHaveAttribute("data-thought", app, { timeout: 6000 });
+    await expect(agentFigure(page)).toBeInViewport();
+    for (const [app, url] of Object.entries(apps)) {
+      const link = agentFigure(page).locator(`a[data-thought="${app}"]`);
+      await expect(link).toHaveAttribute("href", url);
+      await expect(link).toHaveAttribute("target", "_blank");
+      await page.clock.fastForward(4000);
     }
-    expect([...seen].sort()).toEqual(Object.keys(apps).sort());
   });
 
   test("hovering a thought keeps it from changing", async ({ page, isMobile }) => {
@@ -479,7 +518,8 @@ test.describe("llms.txt", () => {
     expect(body).toContain("packages/mcp/AGENTS.md");
     expect(body).toContain("wss://relay.formstr.app");
     expect(body).toContain("Site visit feedback");
-    for (const host of ["formstr.app", "calendar.formstr.app", "pages.formstr.app", "drive.formstr.app", "mailstr.app"]) {
+    expect(body).toMatch(/\[Sheets\].+33460.+33461.+33462/);
+    for (const [, host] of products) {
       expect(body).toContain(`https://${host}`);
     }
   });

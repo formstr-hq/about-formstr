@@ -23,6 +23,8 @@
   --color-forms: #f76b15;
   --color-cal: #3b82f6;
   --color-pages: #10b981;
+  /* Sheets' ember accent, darkened for small type on paper. */
+  --color-sheets: color-mix(in srgb, #ff5a36 70%, var(--color-ink));
   --color-drive: #8b5cf6;
   --color-mail: #e5484d;
   --color-polls: #ec4899;
