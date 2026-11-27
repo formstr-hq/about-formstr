@@ -1099,7 +1099,7 @@ function Suite() {
       <div className="sheet py-24 lg:py-[120px]">
         <SectionHead
           no="01 — The suite"
-          title="Six apps. One key. Everything in an open format."
+          title="A completely open suite of productivity apps"
           lede="Each app stands on its own. They share an identity and a data format, so they also work together, and with anything else that speaks Nostr. Each one is listed with the event kinds it stores your work as."
         />
         <Entry

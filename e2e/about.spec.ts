@@ -103,7 +103,7 @@ test.describe("home", () => {
       const page = await context.newPage();
       await page.goto("/");
       const suite = page.locator("#suite");
-      await expect(suite.getByRole("heading", { level: 2 })).toHaveText("Six apps. One key. Everything in an open format.");
+      await expect(suite.getByRole("heading", { level: 2 })).toHaveText("A completely open suite of productivity apps");
       await expect(suite.getByRole("heading", { level: 3 })).toHaveText(products.map(([name]) => name));
       for (const [name, host] of products) {
         const link = suite.getByRole("link", { name: `Open ${name}`, exact: true });
