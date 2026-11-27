@@ -10,14 +10,14 @@
     <title>Formstr — Work tools for people and their agents</title>
     <meta
       name="description"
-      content="Forms, documents, calendars, files and email on Nostr, an open protocol. Your work is signed with your key and encrypted on your device, and the people and AI agents you trust can work with it directly: no API keys to provision, no integrations to maintain."
+      content="Forms, documents, spreadsheets, calendars, files and email on Nostr, an open protocol. Explore six apps, encrypted workbooks and the tools agents use to read form responses and schedule meetings."
     />
     <meta name="theme-color" content="#f4f4f3" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="author" content="Formstr" />
     <meta
       name="keywords"
-      content="Formstr, Nostr, AI agents, MCP, Model Context Protocol, @formstr/mcp, encrypted forms, decentralized calendar, encrypted documents, Blossom file storage, Mailstr, Nostr email, open source, self-hosted"
+      content="Formstr, Nostr, AI agents, MCP, Model Context Protocol, @formstr/mcp, encrypted forms, decentralized calendar, encrypted documents, Formstr Sheets, encrypted spreadsheets, Blossom file storage, Mailstr, Nostr email, open source, self-hosted"
     />
 
     <!-- icons -->
@@ -31,7 +31,7 @@
     <meta property="og:title" content="Formstr — Work tools for people and their agents" />
     <meta
       property="og:description"
-      content="Forms, documents, calendars, files and email on Nostr. Encrypted with your key, readable by the people and agents you trust. No API keys, no integrations."
+      content="Forms, documents, spreadsheets, calendars, files and email on Nostr. Explore six apps that share a Nostr identity, including encrypted workbooks in Formstr Sheets."
     />
     <meta property="og:image" content="https://about.formstr.app/og-image.png" />
     <meta property="og:image:width" content="1200" />
@@ -47,7 +47,7 @@
     <meta name="twitter:title" content="Formstr — Work tools for people and their agents" />
     <meta
       name="twitter:description"
-      content="Forms, documents, calendars, files and email on Nostr. Encrypted with your key, readable by the people and agents you trust."
+      content="Forms, documents, spreadsheets, calendars, files and email on Nostr. Explore six apps that share a Nostr identity, including encrypted workbooks in Formstr Sheets."
     />
     <meta name="twitter:image" content="https://about.formstr.app/og-image.png" />
 
@@ -114,6 +114,14 @@
               },
               {
                 "@type": "SoftwareApplication",
+                "name": "Formstr Sheets",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web",
+                "url": "https://sheets.formstr.app/",
+                "description": "Encrypted workbooks on Nostr with formulas, multiple worksheets and viewer or editor access."
+              },
+              {
+                "@type": "SoftwareApplication",
                 "name": "Formstr Drive",
                 "applicationCategory": "BusinessApplication",
                 "operatingSystem": "Web",
@@ -129,17 +137,17 @@
                 "url": "https://mailstr.app",
                 "description": "An email address for your Nostr key; mail arrives encrypted to your key.",
                 "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-              },
-              {
-                "@type": "SoftwareApplication",
-                "name": "@formstr/mcp",
-                "applicationCategory": "DeveloperApplication",
-                "operatingSystem": "macOS, Windows, Linux",
-                "url": "https://www.npmjs.com/package/@formstr/mcp",
-                "description": "A Model Context Protocol server that lets AI agents work across the Formstr suite.",
-                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
               }
             ]
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "@formstr/mcp",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "macOS, Windows, Linux",
+            "url": "https://www.npmjs.com/package/@formstr/mcp",
+            "description": "A Model Context Protocol server for forms, calendars, documents, files, mail, polls and kanban boards.",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
           }
         ]
       }
@@ -150,13 +158,14 @@
     <noscript>
       <h1>Formstr — work tools for people and their agents.</h1>
       <p>
-        Forms, documents, calendars, files and email on Nostr, an open protocol. Your work is signed with your key
-        and encrypted on your device, and the people and AI agents you trust can work with it directly.
+        Forms, documents, spreadsheets, calendars, files and email on Nostr, an open protocol. Agents can use a Nostr key
+        to read form responses, schedule meetings and edit shared documents.
       </p>
       <ul>
         <li><a href="https://formstr.app">Formstr — encrypted forms and surveys</a></li>
         <li><a href="https://calendar.formstr.app">Calendar — events and booking pages</a></li>
         <li><a href="https://pages.formstr.app">Pages — encrypted documents</a></li>
+        <li><a href="https://sheets.formstr.app/">Sheets — encrypted spreadsheets</a></li>
         <li><a href="https://drive.formstr.app">Drive — files on Blossom</a></li>
         <li><a href="https://mailstr.app">Mailstr — email for your Nostr key</a></li>
         <li><a href="https://www.npmjs.com/package/@formstr/mcp">@formstr/mcp — connect an AI agent</a></li>

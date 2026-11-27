@@ -1,6 +1,6 @@
 # Formstr
 
-> Formstr is a suite of open-source work tools built on Nostr, an open protocol: forms (Formstr), calendar, documents (Pages), file storage (Drive) and email (Mailstr). Everything a user creates is a signed Nostr event, encrypted on their device, stored on relays they choose. AI agents use the suite through @formstr/mcp, a Model Context Protocol server with 70+ tools. No API keys, developer accounts or integration approval are needed. An agent can create its own Nostr identity, or act for a user through a remote signer (NIP-46).
+> Formstr brings forms (Formstr), Calendar, documents (Pages), spreadsheets (Sheets), file storage (Drive) and email (Mailstr) to Nostr. Private content is encrypted before relay publication. Agents can use the 70+ tools in @formstr/mcp for forms, calendars, documents, files, mail, polls and kanban boards. An agent can create its own Nostr identity or act for a user through a remote signer (NIP-46).
 
 To connect an agent, read AGENTS.md first. It's written for agents and is self-contained: setup, sign-in, every tool, the confirmation gate, and worked recipes.
 
@@ -30,13 +30,14 @@ The about page's hero form is real: "Site visit feedback", rendered with @formst
 
 ## Where data lives
 
-By default every app stores events on the Formstr Relay (wss://relay.formstr.app) plus a configurable set of public relays (e.g. wss://relay.damus.io, wss://relay.primal.net, wss://nos.lol). Users can change the list in any app, run their own relay (self-hosted), or keep data on their device only. Content is encrypted on the device before it's sent (NIP-44), so relays, including Formstr's, store only ciphertext and signatures.
+Storage options vary by app. Sheets keeps a working copy in browser storage and syncs encrypted snapshots to the Formstr Relay (wss://relay.formstr.app) and other default relays, plus relays from the user's kind 10002 relay list. Each snapshot is NIP-44 encrypted with the workbook's view key and signed with its edit key.
 
 ## Apps
 
 - [Formstr](https://formstr.app): Forms and surveys with end-to-end encrypted responses. Event kinds: 30168 (form), 1069 (response).
 - [Calendar](https://calendar.formstr.app): Events, RSVPs, recurring schedules and booking pages. Event kinds: 31923 (event), 32678 (private event).
 - [Pages](https://pages.formstr.app): Encrypted Markdown documents with real-time multi-writer editing. Event kind: 33457.
+- [Sheets](https://sheets.formstr.app/): Workbooks with multiple worksheets, formulas and cell formatting. Import XLSX or CSV, export a workbook as XLSX or the active worksheet as CSV, and grant view or edit access. Kind 33460 holds the encrypted workbook snapshot, 33461 a recipient-encrypted access grant and 33462 the user's self-encrypted library entry.
 - [Drive](https://drive.formstr.app): Files stored on Blossom servers the user chooses, indexed on Nostr. Event kind: 34578 (file metadata).
 - [Mailstr](https://mailstr.app): An email address for a Nostr key. Mail arrives as kind 1301 inside a NIP-59 gift wrap.
 
@@ -45,6 +46,7 @@ By default every app stores events on the Formstr Relay (wss://relay.formstr.app
 - [nostr-forms](https://github.com/formstr-hq/nostr-forms): Formstr.
 - [nostr-calendar](https://github.com/formstr-hq/nostr-calendar): Calendar.
 - [nostr-docs](https://github.com/formstr-hq/nostr-docs): Pages.
+- [sheets](https://github.com/formstr-hq/sheets): Sheets.
 - [formstr-drive](https://github.com/formstr-hq/formstr-drive): Drive.
 - [nail](https://github.com/formstr-hq/nail): Mailstr, the email ⇄ Nostr bridge.
 - [common-packages](https://github.com/formstr-hq/common-packages): @formstr/mcp and the shared SDKs.
